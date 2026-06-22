@@ -43,6 +43,25 @@ def _all_tasks_for_entity(
     return sort_by_name(tasks)
 
 
+def _open_comment_files(comments: list[dict]) -> tuple[dict, list]:
+    """
+    Open the attachment/preview files referenced by a batch of comments.
+
+    Returns the multipart ``files`` dict (including the JSON ``comments``
+    part) and the list of opened files -- the caller must close them.
+    """
+    files = {}
+    opened_files = []
+    for x, comment in enumerate(comments):
+        for kind in ("attachment_files", "preview_files"):
+            for y, file_path in enumerate(comment.get(kind) or []):
+                f = open(file_path, "rb")
+                opened_files.append(f)
+                files[f"{kind[:-1]}-{x}-{y}"] = f
+    files["comments"] = (None, json.dumps(comments), "application/json")
+    return files, opened_files
+
+
 @cache
 def all_task_statuses(client: KitsuClient = default) -> list[dict]:
     """
@@ -282,7 +301,7 @@ def all_tasks_for_task_type(
     Args:
         project (str / dict): The project dict or the project ID.
         task_type (str / dict): The task type dict or ID.
-        episode_id (str / dict): The episode dict or ID.
+        episode (str / dict): The episode dict or ID.
 
     Returns:
         list: Tasks for given project and task type.
@@ -589,7 +608,7 @@ def get_task_status_by_name(
 ) -> dict | None:
     """
     Args:
-        name (str / dict): The name of claimed task status.
+        name (str): The name of claimed task status.
 
     Returns:
         dict: Task status matching given name.
@@ -603,7 +622,7 @@ def get_task_status_by_short_name(
 ) -> dict | None:
     """
     Args:
-        short_name (str / dict): The short name of claimed task status.
+        task_status_short_name (str): The short name of claimed task status.
 
     Returns:
         dict: Task status matching given short name.
@@ -1112,7 +1131,7 @@ def upload_preview_file(
     progress_callback=None,
 ) -> dict:
     """
-    Create a preview into given comment.
+    Upload the file content for a given preview file.
 
     Args:
         preview_file (str / dict): The preview_file dict or the preview_file ID.
@@ -1300,26 +1319,8 @@ def batch_comments(
     if task is not None:
         task = normalize_model_parameter(task)
 
-    files = {}
-    opened_files = []
+    files, opened_files = _open_comment_files(comments)
     try:
-        for x, comment in enumerate(comments):
-            if comment.get("attachment_files"):
-                for y, file_path in enumerate(comment["attachment_files"]):
-                    f = open(file_path, "rb")
-                    opened_files.append(f)
-                    files[f"attachment_file-{x}-{y}"] = f
-            if comment.get("preview_files"):
-                for y, file_path in enumerate(comment["preview_files"]):
-                    f = open(file_path, "rb")
-                    opened_files.append(f)
-                    files[f"preview_file-{x}-{y}"] = f
-
-        files["comments"] = (
-            None,
-            json.dumps(comments),
-            "application/json",
-        )
         return raw.upload(
             f"actions/tasks/{task['id'] + '/' if task else ''}batch-comment",
             file_path=None,
@@ -1356,26 +1357,8 @@ def create_multiple_comments(
         comments = []
     project = normalize_model_parameter(project)
 
-    files = {}
-    opened_files = []
+    files, opened_files = _open_comment_files(comments)
     try:
-        for x, comment in enumerate(comments):
-            if comment.get("attachment_files"):
-                for y, file_path in enumerate(comment["attachment_files"]):
-                    f = open(file_path, "rb")
-                    opened_files.append(f)
-                    files[f"attachment_file-{x}-{y}"] = f
-            if comment.get("preview_files"):
-                for y, file_path in enumerate(comment["preview_files"]):
-                    f = open(file_path, "rb")
-                    opened_files.append(f)
-                    files[f"preview_file-{x}-{y}"] = f
-
-        files["comments"] = (
-            None,
-            json.dumps(comments),
-            "application/json",
-        )
         return raw.upload(
             f"actions/projects/{project['id']}/tasks/comment-many",
             file_path=None,

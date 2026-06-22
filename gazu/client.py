@@ -603,12 +603,6 @@ def check_status(
             body = request.json()
         except Exception:
             body = {}
-        message = "No additional information"
-        if isinstance(body, dict):
-            for key in ["error", "message"]:
-                if body.get(key):
-                    message = body[key]
-                    break
         jwt_expired = (
             isinstance(body, dict)
             and body.get("message") == "Signature has expired"
@@ -631,7 +625,7 @@ def check_status(
                     if retry:
                         return status_code, True
                 raise
-        raise ValidationException(path, message)
+        raise ValidationException(path, get_message_from_response(request))
     elif status_code == 401:
         try:
             if (

@@ -13,6 +13,11 @@ from .helpers import normalize_model_parameter
 default = raw.default_client
 
 
+def _format_path(folder: str, name: str, sep: str) -> str:
+    """Join a folder and file name, replacing spaces with underscores."""
+    return f"{folder.replace(' ', '_')}{sep}{name.replace(' ', '_')}"
+
+
 def _output_file_filters(
     output_type: str | dict | None = None,
     task_type: str | dict | None = None,
@@ -392,7 +397,7 @@ def all_softwares(client: KitsuClient = default) -> list[dict]:
 def get_software(software_id: str, client: KitsuClient = default) -> dict:
     """
     Args:
-        software_id (str): ID of claimed output type.
+        software_id (str): ID of claimed software.
 
     Returns:
         dict: Software object corresponding to given ID.
@@ -406,7 +411,7 @@ def get_software_by_name(
 ) -> dict | None:
     """
     Args:
-        software_name (str): Name of claimed output type.
+        software_name (str): Name of claimed software.
 
     Returns:
         dict: Software object corresponding to given name.
@@ -495,7 +500,7 @@ def build_working_file_path(
     result = raw.post(
         f"data/tasks/{task['id']}/working-file-path", data, client=client
     )
-    return f"{result['path'].replace(' ', '_')}{sep}{result['name'].replace(' ', '_')}"
+    return _format_path(result["path"], result["name"], sep)
 
 
 @cache
@@ -547,7 +552,7 @@ def build_entity_output_file_path(
     }
     path = f"data/entities/{entity['id']}/output-file-path"
     result = raw.post(path, data, client=client)
-    return f"{result['folder_path'].replace(' ', '_')}{sep}{result['file_name'].replace(' ', '_')}"
+    return _format_path(result["folder_path"], result["file_name"], sep)
 
 
 @cache
@@ -603,7 +608,7 @@ def build_asset_instance_output_file_path(
     }
     path = f"data/asset-instances/{asset_instance['id']}/entities/{temporal_entity['id']}/output-file-path"
     result = raw.post(path, data, client=client)
-    return f"{result['folder_path'].replace(' ', '_')}{sep}{result['file_name'].replace(' ', '_')}"
+    return _format_path(result["folder_path"], result["file_name"], sep)
 
 
 def new_working_file(
@@ -812,8 +817,8 @@ def get_next_entity_output_revision(
     """
     Args:
         entity (str / dict): The entity dict or ID.
-        output_type (str / dict): The entity dict or ID.
-        task_type (str / dict): The entity dict or ID.
+        output_type (str / dict): The output type dict or ID.
+        task_type (str / dict): The task type dict or ID.
         name (str): Get version for output file with the given name.
 
     Returns:
@@ -844,8 +849,8 @@ def get_next_asset_instance_output_revision(
     Args:
         asset_instance (str / dict): The asset instance dict or ID.
         temporal_entity (str / dict): The temporal entity dict or ID.
-        output_type (str / dict): The entity dict or ID.
-        task_type (str / dict): The entity dict or ID.
+        output_type (str / dict): The output type dict or ID.
+        task_type (str / dict): The task type dict or ID.
 
     Returns:
         int: Next revision of ouput files available for given asset insance
@@ -874,8 +879,8 @@ def get_last_entity_output_revision(
     """
     Args:
         entity (str / dict): The entity dict or ID.
-        output_type (str / dict): The entity dict or ID.
-        task_type (str / dict): The entity dict or ID.
+        output_type (str / dict): The output type dict or ID.
+        task_type (str / dict): The task type dict or ID.
         name (str): The output name
 
     Returns:

@@ -5,7 +5,7 @@ Usage::
 
     import gazu.aio
 
-    async with gazu.aio.create_session(host, email, password) as client:
+    async with await gazu.aio.create_session(host, email, password) as client:
         data = await gazu.aio.get("data/projects", client=client)
 
 No default client is provided -- always pass an explicit ``client``.
@@ -40,6 +40,18 @@ from .exception import (
 )
 
 logger = logging.getLogger("gazu.aio")
+
+
+def _message_from_data(
+    data: Any, default: str = "No additional information"
+) -> str:
+    """Extract Zou's error/message string from a parsed JSON body."""
+    if isinstance(data, dict):
+        for key in ("error", "message"):
+            value = data.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return default
 
 
 class AsyncKitsuClient:
@@ -152,13 +164,7 @@ async def check_status(
         raise NotAllowedException(path)
     elif status_code == 400:
         data = await response.json()
-        message = "No additional information"
-        if isinstance(data, dict):
-            for key in ["error", "message"]:
-                if data.get(key):
-                    message = data[key]
-                    break
-        raise ParameterException(path, message)
+        raise ParameterException(path, _message_from_data(data))
     elif status_code == 405:
         raise MethodNotAllowedException(path)
     elif status_code == 413:
@@ -171,12 +177,6 @@ async def check_status(
             data = await response.json()
         except Exception:
             data = {}
-        message = "No additional information"
-        if isinstance(data, dict):
-            for key in ["error", "message"]:
-                if data.get(key):
-                    message = data[key]
-                    break
         jwt_expired = (
             isinstance(data, dict)
             and data.get("message") == "Signature has expired"
@@ -199,7 +199,7 @@ async def check_status(
                     if retry:
                         return status_code, True
                 raise
-        raise ValidationException(path, message)
+        raise ValidationException(path, _message_from_data(data))
     elif status_code == 401:
         try:
             data = await response.json()
@@ -225,12 +225,9 @@ async def check_status(
             stacktrace = data.get(
                 "stacktrace", "No stacktrace sent by the server"
             )
-            message = "No message sent by the server"
-            if isinstance(data, dict):
-                for key in ["error", "message"]:
-                    if data.get(key):
-                        message = data[key]
-                        break
+            message = _message_from_data(
+                data, default="No message sent by the server"
+            )
             logger.error(
                 "A server error occurred!\n"
                 "Server stacktrace:\n%s\n"
@@ -460,12 +457,7 @@ async def upload(
         for f in files_to_close:
             f.close()
 
-    message = ""
-    if isinstance(result, dict):
-        for key in ["error", "message"]:
-            if result.get(key):
-                message = result[key]
-                break
+    message = _message_from_data(result, default="")
     if message:
         raise UploadFailedException(message)
 
