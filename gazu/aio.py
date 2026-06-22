@@ -24,7 +24,7 @@ from .__version__ import __version__
 from .client import (
     url_path_join,
     build_path_with_params,
-    get_message_from_response as _sync_get_message,
+    MAX_AUTH_RETRIES,
 )
 from .encoder import CustomJSONEncoder
 from .exception import (
@@ -117,8 +117,7 @@ class AsyncKitsuClient:
             await check_status(response, "auth/refresh-token")
             tokens = await response.json()
         self.access_token = tokens["access_token"]
-        # Keep the existing refresh token unless the server returns a new one,
-        # so automatic refresh keeps working on the next expiry.
+        # Keep the current refresh token unless the server returns a new one.
         self.refresh_token = tokens.get("refresh_token", self.refresh_token)
         return tokens
 
@@ -254,8 +253,7 @@ async def get(
 ) -> Any:
     logger.debug("GET %s", get_full_url(path, client))
     path = build_path_with_params(path, params)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         async with client.session.get(
             get_full_url(path, client),
             headers=client.make_auth_header(),
@@ -266,12 +264,12 @@ async def get(
                     return await response.json()
                 else:
                     return await response.text()
+    raise NotAuthenticatedException(path)
 
 
 async def post(path: str, data: Any, client: AsyncKitsuClient = None) -> Any:
     logger.debug("POST %s", get_full_url(path, client))
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         async with client.session.post(
             get_full_url(path, client),
             json=data,
@@ -285,12 +283,12 @@ async def post(path: str, data: Any, client: AsyncKitsuClient = None) -> Any:
                     text = await response.text()
                     logger.error("Failed to decode JSON response: %s", text)
                     raise
+    raise NotAuthenticatedException(path)
 
 
 async def put(path: str, data: dict, client: AsyncKitsuClient = None) -> Any:
     logger.debug("PUT %s", get_full_url(path, client))
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         async with client.session.put(
             get_full_url(path, client),
             json=data,
@@ -299,6 +297,7 @@ async def put(path: str, data: dict, client: AsyncKitsuClient = None) -> Any:
             _, retry = await check_status(response, path, client=client)
             if not retry:
                 return await response.json()
+    raise NotAuthenticatedException(path)
 
 
 async def delete(
@@ -308,8 +307,7 @@ async def delete(
 ) -> str:
     logger.debug("DELETE %s", get_full_url(path, client))
     path = build_path_with_params(path, params)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         async with client.session.delete(
             get_full_url(path, client),
             headers=client.make_auth_header(),
@@ -317,6 +315,7 @@ async def delete(
             _, retry = await check_status(response, path, client=client)
             if not retry:
                 return await response.text()
+    raise NotAuthenticatedException(path)
 
 
 async def fetch_all(
@@ -438,8 +437,7 @@ async def upload(
         form.add_field(f"file-{i}", f, filename=os.path.basename(extra_path))
 
     try:
-        retry = True
-        while retry:
+        for _ in range(MAX_AUTH_RETRIES):
             async with client.session.post(
                 url,
                 data=form,
@@ -455,6 +453,9 @@ async def upload(
                             "Failed to decode JSON response: %s", text
                         )
                         raise
+                    break
+        else:
+            raise NotAuthenticatedException(path)
     finally:
         for f in files_to_close:
             f.close()

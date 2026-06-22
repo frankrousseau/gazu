@@ -1,16 +1,22 @@
+import logging
+
 from . import client as raw
 from . import cache
 from . import helpers
 
+_logger = logging.getLogger("gazu")
+
+# events and aio rely on optional dependencies; log the cause instead of
+# hiding every ImportError.
 try:
     from . import events
-except ImportError:
-    pass
+except ImportError as exc:
+    _logger.debug("gazu.events unavailable: %s", exc)
 
 try:
     from . import aio
-except ImportError:
-    pass
+except ImportError as exc:
+    _logger.debug("gazu.aio unavailable: %s", exc)
 
 from . import asset
 from . import casting

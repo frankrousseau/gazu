@@ -27,6 +27,9 @@ from urllib.parse import urlencode
 
 logger = logging.getLogger("gazu")
 
+# Bound the auth-recovery retries to avoid an infinite loop.
+MAX_AUTH_RETRIES = 3
+
 if os.getenv("GAZU_DEBUG", "false").lower() == "true":
     logging.basicConfig(level=logging.DEBUG)
     logger.setLevel(logging.DEBUG)
@@ -94,9 +97,7 @@ class KitsuClient(object):
         tokens = response.json()
 
         self.access_token = tokens["access_token"]
-        # The refresh endpoint usually returns only a new access token. Keep the
-        # existing refresh token so automatic refresh still works on the next
-        # expiry; only replace it when the server sends a new one.
+        # Keep the current refresh token unless the server returns a new one.
         self.refresh_token = tokens.get("refresh_token", self.refresh_token)
 
         return tokens
@@ -388,13 +389,16 @@ def get(
     """
     logger.debug("GET %s", get_full_url(path, client))
     path = build_path_with_params(path, params)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         response = client.session.get(
             get_full_url(path, client=client),
             headers=make_auth_header(client=client),
         )
         _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(path)
 
     if json_response:
         return response.json()
@@ -424,8 +428,7 @@ def post(path: str, data: Any, client: KitsuClient = default_client) -> Any:
     }
     if not any(field in data for field in sensitive_fields):
         logger.debug("Body: %s", data)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         headers = make_auth_header(client=client)
         headers["Content-Type"] = "application/json"
         response = client.session.post(
@@ -434,6 +437,10 @@ def post(path: str, data: Any, client: KitsuClient = default_client) -> Any:
             headers=headers,
         )
         _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(path)
     try:
         result = response.json()
     except json.JSONDecodeError:
@@ -456,8 +463,7 @@ def put(path: str, data: dict, client: KitsuClient = default_client) -> Any:
     """
     logger.debug("PUT %s", get_full_url(path, client))
     logger.debug("Body: %s", data)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         headers = make_auth_header(client=client)
         headers["Content-Type"] = "application/json"
         response = client.session.put(
@@ -466,6 +472,10 @@ def put(path: str, data: dict, client: KitsuClient = default_client) -> Any:
             headers=headers,
         )
         _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(path)
     return response.json()
 
 
@@ -486,12 +496,15 @@ def delete(
     logger.debug("DELETE %s", get_full_url(path, client))
     path = build_path_with_params(path, params)
 
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         response = client.session.delete(
             get_full_url(path, client), headers=make_auth_header(client=client)
         )
         _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(path)
     return response.text
 
 
@@ -852,8 +865,7 @@ def upload(
             offset += os.fstat(f.fileno()).st_size
         files = wrapped
     try:
-        retry = True
-        while retry:
+        for _ in range(MAX_AUTH_RETRIES):
             response = client.session.post(
                 url,
                 data=data,
@@ -861,6 +873,10 @@ def upload(
                 files=files,
             )
             _, retry = check_status(response, path, client=client)
+            if not retry:
+                break
+        else:
+            raise NotAuthenticatedException(path)
     finally:
         if opened_files:
             for f in opened_files.values():
@@ -960,14 +976,17 @@ def get_file_data_from_url(
     """
     if not full:
         url = get_full_url(url)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         response = client.session.get(
             url,
             stream=True,
             headers=make_auth_header(client=client),
         )
         _, retry = check_status(response, url, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(url)
     return response.content
 
 

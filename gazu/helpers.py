@@ -39,7 +39,7 @@ def normalize_model_parameter(
         except Exception:
             raise ValueError("Failed to cast argument to str")
 
-        if _UUID_RE.match(id_str):
+        if _UUID_RE.fullmatch(id_str):
             return {"id": id_str}
         else:
             raise ValueError("Wrong format: expected ID string or Data dict")
