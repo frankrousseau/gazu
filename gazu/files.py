@@ -888,9 +888,8 @@ def get_last_entity_output_revision(
     revision = get_next_entity_output_revision(
         entity, output_type, task_type, name, client=client
     )
-    if revision != 1:
-        revision -= 1
-    return revision
+    # next_revision is 1 when no output file exists yet, so last is 0.
+    return revision - 1
 
 
 def get_last_asset_instance_output_revision(
@@ -916,9 +915,8 @@ def get_last_asset_instance_output_revision(
         name=name,
         client=client,
     )
-    if revision != 1:
-        revision -= 1
-    return revision
+    # next_revision is 1 when no output file exists yet, so last is 0.
+    return revision - 1
 
 
 @cache

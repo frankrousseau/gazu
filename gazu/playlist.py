@@ -73,6 +73,10 @@ def all_playlists_for_episode(
     Returns:
         list: All playlists for the given episode.
     """
+    episode = normalize_model_parameter(episode)
+    # Fetch the episode when only an ID was given, to get its project_id.
+    if "project_id" not in episode:
+        episode = raw.fetch_one("episodes", episode["id"], client=client)
     project = normalize_model_parameter(episode["project_id"])
     return sort_by_name(
         raw.fetch_all(
@@ -214,7 +218,7 @@ def add_entity_to_playlist(
     entity = normalize_model_parameter(entity)
 
     if preview_file is None:
-        preview_files = get_entity_preview_files(entity)
+        preview_files = get_entity_preview_files(entity, client=client)
         for task_type_id in preview_files.keys():
             task_type_files = preview_files[task_type_id]
             if not task_type_files:

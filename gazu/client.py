@@ -86,6 +86,8 @@ class KitsuClient(object):
         Returns:
             dict: The new access token.
         """
+        if not self.refresh_token:
+            raise NotAuthenticatedException("auth/refresh-token")
         response = self.session.get(
             get_full_url("auth/refresh-token", client=self),
             headers={
