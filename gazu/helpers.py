@@ -87,7 +87,7 @@ def download_file(
     url: str, file_path: str | None = None, headers: dict | None = None
 ) -> str:
     """
-    Download file located at *file_path* to given url *url*.
+    Download the file at *url* and store it at *file_path*.
 
     Args:
         url (str): The url path to download file from.

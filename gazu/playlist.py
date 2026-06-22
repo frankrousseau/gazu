@@ -314,7 +314,7 @@ def delete_playlist(
         playlist (str / dict): The playlist dict or id.
 
     Returns:
-        Response: Request response object.
+        str: The API response text.
     """
     playlist = normalize_model_parameter(playlist)
     return raw.delete(f"data/playlists/{playlist['id']}", client=client)

@@ -52,7 +52,7 @@ def get_time_spents_range(
     client: KitsuClient = default,
 ) -> list:
     """
-    Gets the time spents of the current user for the given date range.
+    Gets the time spents of the given person for the given date range.
 
     Args:
         person_id (str): An uuid identifying a person.

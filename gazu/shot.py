@@ -415,8 +415,10 @@ def new_shot(
         project (str / dict): The project dict or the project ID.
         sequence (str / dict): The sequence dict or the sequence ID.
         name (str): The name of the shot to create.
+        nb_frames (int): Number of frames of the shot.
         frame_in (int): Frame in value for the shot.
         frame_out (int): Frame out value for the shot.
+        description (str): Description of the shot.
         data (dict): Free field to set metadata of any kind.
 
     Returns:
@@ -553,7 +555,7 @@ def remove_shot(
 
     Args:
         shot (str / dict): Shot to remove.
-        force (bool): Whether to force deletion of the asset regardless of
+        force (bool): Whether to force deletion of the shot regardless of
             whether it has links to tasks.
     """
     shot = normalize_model_parameter(shot)
@@ -846,7 +848,7 @@ def export_shots_with_csv(
             exists it will be overwritten.
         episode (str | dict | None):
             Only export Shots that are linked to the given Episode, which can
-            be provided as an ID string or model dict. If None, all assets will
+            be provided as an ID string or model dict. If None, all shots will
             be exported.
         assigned_to (str | dict | None):
             Only export Shots that have one or more Tasks assigned to the

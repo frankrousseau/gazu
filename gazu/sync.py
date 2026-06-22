@@ -97,7 +97,7 @@ def import_entity_links(
         links (list): Entity links to import.
 
     Returns:
-        dict: Entity links created.
+        list: Entity links created.
     """
     return raw.post("import/kitsu/entity-links", links, client=client)
 
@@ -165,8 +165,8 @@ def get_id_map_by_name(
 ) -> dict:
     """
     Args:
-        source_list (list): List of links to compare.
-        target_list (list): List of links for which we want a diff.
+        source_list (list): Source models to map.
+        target_list (list): Target models to match against by name.
 
     Returns:
         dict: A dict where keys are the source model names and the values are
@@ -523,7 +523,7 @@ def push_tasks(
         client_target (KitsuClient): client to push data to target API
 
     Returns:
-        list: Pushed entity links
+        list: Pushed tasks
     """
     default_status_id = normalize_model_parameter(default_status)["id"]
     task_type_map = get_sync_task_type_id_map(client_source, client_target)
@@ -560,7 +560,7 @@ def push_tasks_comments(
         client_target (KitsuClient): client to push data to target API
 
     Returns:
-        list: Created comments
+        list: Source tasks whose comments were pushed
     """
     task_status_map = get_sync_task_status_id_map(client_source, client_target)
     person_map = get_sync_person_id_map(client_source, client_target)

@@ -122,7 +122,7 @@ def all_tasks_for_sequence(
     sequence: str | dict, client: KitsuClient = default
 ) -> list[dict]:
     """
-    Return the list of tasks for given asset and current user.
+    Return the list of tasks for given sequence and current user.
     """
     sequence = normalize_model_parameter(sequence)
     path = f"user/sequences/{sequence['id']}/tasks"
@@ -187,7 +187,7 @@ def all_task_types_for_sequence(
 ) -> list[dict]:
     """
     Returns:
-        list: Task types for given asset and current user.
+        list: Task types for given sequence and current user.
     """
     sequence = normalize_model_parameter(sequence)
     path = f"user/sequences/{sequence['id']}/task-types"

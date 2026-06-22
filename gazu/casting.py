@@ -45,7 +45,7 @@ def update_asset_casting(
     displayed into the asset).
 
     Args:
-        project (str / dict): The project dict or asset ID.
+        project (str / dict): The project dict or the project ID.
         asset (str / dict): The asset dict or the asset ID.
         casting (dict): The casting description.
 
