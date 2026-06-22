@@ -140,7 +140,9 @@ def get_shot_casting(shot: dict, client: KitsuClient = default) -> list[dict]:
     return raw.get(path, client=client)
 
 
-def get_asset_casting(asset: dict, client: KitsuClient = default) -> list[dict]:
+def get_asset_casting(
+    asset: dict, client: KitsuClient = default
+) -> list[dict]:
     """
     Return casting for given asset.
     `[{"asset_id": "asset-1", "nb_occurences": 3}]}`

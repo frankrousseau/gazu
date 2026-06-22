@@ -112,7 +112,7 @@ def download_file(
             if os.path.isdir(file_path):
                 file_path = file_path + os.sep
 
-            (dir, filename) = os.path.split(file_path)
+            dir, filename = os.path.split(file_path)
 
             if not filename:
                 url_parts = urlparse.urlparse(url)

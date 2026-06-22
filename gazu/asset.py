@@ -17,7 +17,6 @@ from .client import KitsuClient
 
 from .shot import get_episode
 
-
 default = raw.default_client
 
 

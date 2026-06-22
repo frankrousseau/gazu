@@ -13,7 +13,6 @@ from .helpers import (
 from .cache import cache
 from .client import KitsuClient
 
-
 default = raw.default_client
 
 
