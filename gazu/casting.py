@@ -124,7 +124,7 @@ def get_sequence_casting(
     return raw.get(path, client=client)
 
 
-def get_shot_casting(shot: dict, client: KitsuClient = default) -> dict:
+def get_shot_casting(shot: dict, client: KitsuClient = default) -> list[dict]:
     """
     Return casting for given shot.
 
@@ -140,7 +140,7 @@ def get_shot_casting(shot: dict, client: KitsuClient = default) -> dict:
     return raw.get(path, client=client)
 
 
-def get_asset_casting(asset: dict, client: KitsuClient = default) -> dict:
+def get_asset_casting(asset: dict, client: KitsuClient = default) -> list[dict]:
     """
     Return casting for given asset.
     `[{"asset_id": "asset-1", "nb_occurences": 3}]}`
@@ -159,10 +159,12 @@ def get_asset_casting(asset: dict, client: KitsuClient = default) -> dict:
     return raw.get(path, client=client)
 
 
-def get_episode_casting(episode: dict, client: KitsuClient = default) -> dict:
+def get_episode_casting(
+    episode: dict, client: KitsuClient = default
+) -> list[dict]:
     """
     Return casting for given episode.
-    `[{"episode_id": "episode-1", "nb_occurences": 3}]}`
+    `[{"asset_id": "asset-1", "nb_occurences": 3}]}`
 
     Args:
         episode (dict): The episode dict

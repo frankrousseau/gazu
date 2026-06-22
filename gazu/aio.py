@@ -117,7 +117,9 @@ class AsyncKitsuClient:
             await check_status(response, "auth/refresh-token")
             tokens = await response.json()
         self.access_token = tokens["access_token"]
-        self.refresh_token = None
+        # Keep the existing refresh token unless the server returns a new one,
+        # so automatic refresh keeps working on the next expiry.
+        self.refresh_token = tokens.get("refresh_token", self.refresh_token)
         return tokens
 
     async def __aenter__(self) -> "AsyncKitsuClient":

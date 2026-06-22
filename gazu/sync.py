@@ -215,8 +215,8 @@ def is_changed(source_model: dict, target_model: dict) -> bool:
         target_model (dict): Matching model from the target API.
 
     Returns:
-        bool: True if the source model is older than the target model (based on
-        `updated_at` field)
+        bool: True if the source model is more recent than the target model
+        (based on the `updated_at` field)
     """
     source_date = source_model["updated_at"]
     target_date = target_model["updated_at"]

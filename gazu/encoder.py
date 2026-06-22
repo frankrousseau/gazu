@@ -11,7 +11,8 @@ class CustomJSONEncoder(json.JSONEncoder):
     """
 
     def default(self, obj: Any) -> Any:
-        if isinstance(obj, datetime.datetime):
+        # datetime.date covers both date and datetime (datetime subclasses date).
+        if isinstance(obj, datetime.date):
             return obj.isoformat()
 
         return json.JSONEncoder.default(self, obj)

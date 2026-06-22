@@ -94,7 +94,10 @@ class KitsuClient(object):
         tokens = response.json()
 
         self.access_token = tokens["access_token"]
-        self.refresh_token = None
+        # The refresh endpoint usually returns only a new access token. Keep the
+        # existing refresh token so automatic refresh still works on the next
+        # expiry; only replace it when the server sends a new one.
+        self.refresh_token = tokens.get("refresh_token", self.refresh_token)
 
         return tokens
 

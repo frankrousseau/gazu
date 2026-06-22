@@ -422,8 +422,8 @@ def new_shot(
     Returns:
         dict: Created shot.
     """
-    if data is None:
-        data = {}
+    # Copy to avoid mutating the dict provided by the caller.
+    data = dict(data) if data else {}
     project = normalize_model_parameter(project)
     sequence = normalize_model_parameter(sequence)
 

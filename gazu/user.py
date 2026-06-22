@@ -356,7 +356,9 @@ def new_filter(
         dict: Created filter.
     """
     project_id = (
-        normalize_model_parameter(project) if project is not None else None
+        normalize_model_parameter(project)["id"]
+        if project is not None
+        else None
     )
 
     return raw.post(
