@@ -10,7 +10,8 @@ Gazu is a Python client for the Kitsu API (https://zou.cg-wire.com), a collabora
 
 ```bash
 # Install dependencies (dev mode)
-pip install -e .[dev,test]
+# Optional extras: dev, test, lint, async, cli
+pip install -e .[dev,test,lint]
 
 # Run all tests
 py.test
@@ -24,12 +25,14 @@ py.test tests/test_asset.py::AssetTestCase::test_get_asset
 # Run with coverage
 py.test --cov=gazu
 
-# Format code (requires Python 3.9+)
+# Format code (black is in the `lint` extra; requires Python 3.10+)
 black .
 
 # Install pre-commit hooks
 pre-commit install
 ```
+
+The package targets Python 3.7+ (tested up to 3.14).
 
 ## Architecture
 
@@ -48,15 +51,25 @@ Each module in `gazu/` corresponds to a Kitsu entity type and follows consistent
 - `remove_*()` - Delete entity
 
 Key modules:
-- `asset.py`, `shot.py`, `scene.py`, `edit.py`, `entity.py` - Production entities
+- `asset.py`, `shot.py`, `scene.py`, `edit.py`, `concept.py`, `entity.py` - Production entities
 - `task.py` - Task management and comments
 - `files.py` - File versioning and output files
 - `person.py` - User and time tracking
+- `user.py` - Data accessible to the currently logged user
 - `casting.py` - Asset-to-shot linking
 - `playlist.py` - Review playlists
 - `sync.py` - Data synchronization between instances
-- `project.py` - Project settings and data
-- `context.py` - Connected user data 
+- `project.py` / `project_template.py` - Project settings, data and templates
+- `studio.py` - Studios and departments
+- `search.py` - Cross-entity search
+- `context.py` - Connected user data
+- `helpers.py`, `sorting.py` - Shared utilities (id normalization, sorting)
+
+### Command-line Interface (`gazu/cli.py`)
+Exposed as the `gazu-cli` entry point (requires the `cli` extra, which pulls in `click`).
+
+### Async Support (`gazu/aio.py`)
+Async primitives for the Kitsu API built on `aiohttp` (requires the `async` extra).
 
 ### Caching (`gazu/cache.py`)
 Decorator-based caching system: use `@cache` decorator on functions, control with `gazu.cache.enable()` / `gazu.cache.disable()`.
