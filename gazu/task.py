@@ -24,6 +24,25 @@ from .cache import cache
 default = raw.default_client
 
 
+def _all_tasks_for_entity(
+    entity: str | dict,
+    collection: str,
+    suffix: str = "tasks",
+    relations: bool = False,
+    client: KitsuClient = default,
+) -> list[dict]:
+    """
+    Fetch and sort the tasks listed at ``<collection>/<entity id>/<suffix>``
+    for the given entity. Shared body of all the ``all_*tasks_for_*`` helpers.
+    """
+    entity = normalize_model_parameter(entity)
+    params = {"relations": True} if relations else {}
+    tasks = raw.fetch_all(
+        f"{collection}/{entity['id']}/{suffix}", params, client=client
+    )
+    return sort_by_name(tasks)
+
+
 @cache
 def all_task_statuses(client: KitsuClient = default) -> list[dict]:
     """
@@ -85,12 +104,9 @@ def all_tasks_for_shot(
     Returns:
         list: Tasks linked to given shot.
     """
-    shot = normalize_model_parameter(shot)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    tasks = raw.fetch_all(f"shots/{shot['id']}/tasks", params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        shot, "shots", relations=relations, client=client
+    )
 
 
 @cache
@@ -104,14 +120,9 @@ def all_tasks_for_concept(
     Returns:
         list: Tasks linked to given concept.
     """
-    concept = normalize_model_parameter(concept)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    tasks = raw.fetch_all(
-        f"concepts/{concept['id']}/tasks", params, client=client
+    return _all_tasks_for_entity(
+        concept, "concepts", relations=relations, client=client
     )
-    return sort_by_name(tasks)
 
 
 @cache
@@ -125,12 +136,9 @@ def all_tasks_for_edit(
     Returns:
         list: Tasks linked to given edit.
     """
-    edit = normalize_model_parameter(edit)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    tasks = raw.fetch_all(f"edits/{edit['id']}/tasks", params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        edit, "edits", relations=relations, client=client
+    )
 
 
 @cache
@@ -146,13 +154,9 @@ def all_tasks_for_sequence(
     Returns
         list: Tasks linked to given sequence.
     """
-    sequence = normalize_model_parameter(sequence)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"sequences/{sequence['id']}/tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        sequence, "sequences", relations=relations, client=client
+    )
 
 
 @cache
@@ -166,13 +170,9 @@ def all_tasks_for_scene(
     Returns:
         list: Tasks linked to given scene.
     """
-    scene = normalize_model_parameter(scene)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"scenes/{scene['id']}/tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        scene, "scenes", relations=relations, client=client
+    )
 
 
 @cache
@@ -186,13 +186,9 @@ def all_tasks_for_asset(
     Returns:
         list: Tasks directly linked to given asset.
     """
-    asset = normalize_model_parameter(asset)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"assets/{asset['id']}/tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        asset, "assets", relations=relations, client=client
+    )
 
 
 @cache
@@ -202,13 +198,9 @@ def all_tasks_for_episode(
     """
     Retrieve all tasks directly linked to given episode.
     """
-    episode = normalize_model_parameter(episode)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"episodes/{episode['id']}/tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        episode, "episodes", relations=relations, client=client
+    )
 
 
 @cache
@@ -220,13 +212,9 @@ def all_shot_tasks_for_sequence(
     """
     Retrieve all tasks directly linked to all shots of given sequence.
     """
-    sequence = normalize_model_parameter(sequence)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"sequences/{sequence['id']}/shot-tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        sequence, "sequences", "shot-tasks", relations, client
+    )
 
 
 @cache
@@ -236,13 +224,9 @@ def all_shot_tasks_for_episode(
     """
     Retrieve all tasks directly linked to all shots of given episode.
     """
-    episode = normalize_model_parameter(episode)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"episodes/{episode['id']}/shot-tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        episode, "episodes", "shot-tasks", relations, client
+    )
 
 
 @cache
@@ -252,13 +236,9 @@ def all_assets_tasks_for_episode(
     """
     Retrieve all tasks directly linked to all assets of given episode.
     """
-    episode = normalize_model_parameter(episode)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"episodes/{episode['id']}/asset-tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        episode, "episodes", "asset-tasks", relations, client
+    )
 
 
 @cache

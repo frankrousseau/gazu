@@ -13,6 +13,38 @@ from .helpers import normalize_model_parameter
 default = raw.default_client
 
 
+def _output_file_filters(
+    output_type: str | dict | None = None,
+    task_type: str | dict | None = None,
+    name: str | None = None,
+    representation: str | None = None,
+    file_status: str | dict | None = None,
+    temporal_entity: str | dict | None = None,
+) -> dict:
+    """
+    Build the query params shared by all the ``*output_files_for_*`` helpers.
+    """
+    output_type = normalize_model_parameter(output_type)
+    task_type = normalize_model_parameter(task_type)
+    file_status = normalize_model_parameter(file_status)
+    temporal_entity = normalize_model_parameter(temporal_entity)
+
+    params = {}
+    if temporal_entity:
+        params["temporal_entity_id"] = temporal_entity["id"]
+    if output_type:
+        params["output_type_id"] = output_type["id"]
+    if task_type:
+        params["task_type_id"] = task_type["id"]
+    if representation:
+        params["representation"] = representation
+    if name:
+        params["name"] = name
+    if file_status:
+        params["file_status_id"] = file_status["id"]
+    return params
+
+
 @cache
 def all_output_types(client: KitsuClient = default) -> list[dict]:
     """
@@ -271,23 +303,10 @@ def all_output_files_for_entity(
             task_type, name and representation
     """
     entity = normalize_model_parameter(entity)
-    output_type = normalize_model_parameter(output_type)
-    task_type = normalize_model_parameter(task_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"entities/{entity['id']}/output-files"
-
-    params = {}
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type, task_type, name, representation, file_status
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -317,26 +336,15 @@ def all_output_files_for_asset_instance(
         output type, task_type, name and representation
     """
     asset_instance = normalize_model_parameter(asset_instance)
-    temporal_entity = normalize_model_parameter(temporal_entity)
-    task_type = normalize_model_parameter(task_type)
-    output_type = normalize_model_parameter(output_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"asset-instances/{asset_instance['id']}/output-files"
-
-    params = {}
-    if temporal_entity:
-        params["temporal_entity_id"] = temporal_entity["id"]
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type,
+        task_type,
+        name,
+        representation,
+        file_status,
+        temporal_entity,
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -364,23 +372,10 @@ def all_output_files_for_project(
             task_type, name and representation
     """
     project = normalize_model_parameter(project)
-    output_type = normalize_model_parameter(output_type)
-    task_type = normalize_model_parameter(task_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"projects/{project['id']}/output-files"
-
-    params = {}
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type, task_type, name, representation, file_status
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -951,23 +946,10 @@ def get_last_output_files_for_entity(
             task_type, name and representation
     """
     entity = normalize_model_parameter(entity)
-    output_type = normalize_model_parameter(output_type)
-    task_type = normalize_model_parameter(task_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"entities/{entity['id']}/output-files/last-revisions"
-
-    params = {}
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type, task_type, name, representation, file_status
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -998,23 +980,10 @@ def get_last_output_files_for_asset_instance(
     """
     asset_instance = normalize_model_parameter(asset_instance)
     temporal_entity = normalize_model_parameter(temporal_entity)
-    output_type = normalize_model_parameter(output_type)
-    task_type = normalize_model_parameter(task_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"asset-instances/{asset_instance['id']}/entities/{temporal_entity['id']}/output-files/last-revisions"
-
-    params = {}
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type, task_type, name, representation, file_status
+    )
     return raw.fetch_all(path, params, client=client)
 
 

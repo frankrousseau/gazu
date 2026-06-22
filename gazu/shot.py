@@ -534,13 +534,9 @@ def update_sequence_data(
         data = {}
     sequence = normalize_model_parameter(sequence)
     current_sequence = get_sequence(sequence["id"], client=client)
-
-    if not current_sequence.get("data"):
-        current_sequence["data"] = {}
-
     updated_sequence = {
         "id": current_sequence["id"],
-        "data": {**current_sequence["data"], **data},
+        "data": {**(current_sequence.get("data") or {}), **data},
     }
     return update_sequence(updated_sequence, client=client)
 
@@ -716,8 +712,8 @@ def all_asset_instances_for_shot(
     Returns:
         list: Asset instances linked to given shot.
     """
-    shot = normalize_model_parameter(shot)
-    return raw.get(f"data/shots/{shot['id']}/asset-instances", client=client)
+    # Kept as an alias of get_asset_instances_for_shot for backward compat.
+    return get_asset_instances_for_shot(shot, client=client)
 
 
 def add_asset_instance_to_shot(
