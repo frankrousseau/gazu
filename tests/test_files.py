@@ -1383,6 +1383,17 @@ class FilesTestCase(unittest.TestCase):
                 self.assertTrue(os.path.exists("./test.png"))
                 os.remove("./test.png")
 
+    def test_extract_frame_from_preview_without_file_path(self):
+        # Regression: file_path=None used to crash in open(None, "wb").
+        with open("./tests/fixtures/v1.png", "rb") as frame_file:
+            with requests_mock.mock() as mock:
+                path = f"pictures/preview-files/{fakeid('preview-1')}/extract-frame/100"
+                mock.get(gazu.client.get_full_url(path), body=frame_file)
+                response = gazu.files.extract_frame_from_preview(
+                    fakeid("preview-1"), 100
+                )
+                self.assertEqual(response.status_code, 200)
+
     def test_update_preview_position(self):
         with requests_mock.mock() as mock:
             path = f"data/preview-files/{fakeid('preview-1')}/position"

@@ -558,6 +558,37 @@ def get_message_from_response(
     return message
 
 
+def _handle_auth_expiry(
+    client: KitsuClient, path: str, can_refresh: bool
+) -> bool:
+    """
+    Handle an expired/invalid JWT: refresh the access token when possible,
+    otherwise fall back to the not-authenticated callback.
+
+    Returns:
+        bool: True when the request should be retried.
+
+    Raises:
+        NotAuthenticatedException: when the token can't be refreshed and no
+            callback authorizes a retry.
+    """
+    try:
+        if (
+            can_refresh
+            and client
+            and client.refresh_token
+            and client.use_refresh_token
+        ):
+            client.refresh_access_token()
+            return True
+        raise NotAuthenticatedException(path)
+    except NotAuthenticatedException:
+        if client and client.callback_not_authenticated:
+            if client.callback_not_authenticated(client, path):
+                return True
+        raise
+
+
 def check_status(
     request: requests.Response, path: str, client: KitsuClient = None
 ) -> tuple[int, bool]:
@@ -610,40 +641,22 @@ def check_status(
         # flask-jwt-extended returns 422 with this message when the JWT
         # signature has expired -- this is an auth case, not a validation one.
         if jwt_expired:
-            try:
-                if (
-                    client
-                    and client.refresh_token
-                    and client.use_refresh_token
-                ):
-                    client.refresh_access_token()
-                    return status_code, True
-                raise NotAuthenticatedException(path)
-            except NotAuthenticatedException:
-                if client and client.callback_not_authenticated:
-                    retry = client.callback_not_authenticated(client, path)
-                    if retry:
-                        return status_code, True
-                raise
+            return status_code, _handle_auth_expiry(
+                client, path, can_refresh=True
+            )
         raise ValidationException(path, get_message_from_response(request))
     elif status_code == 401:
         try:
-            if (
-                client
-                and client.refresh_token
-                and client.use_refresh_token
-                and request.json().get("message") == "Signature has expired"
-            ):
-                client.refresh_access_token()
-                return status_code, True
-            else:
-                raise NotAuthenticatedException(path)
-        except NotAuthenticatedException:
-            if client and client.callback_not_authenticated:
-                retry = client.callback_not_authenticated(client, path)
-                if retry:
-                    return status_code, True
-            raise
+            body = request.json()
+        except Exception:
+            body = {}
+        signature_expired = (
+            isinstance(body, dict)
+            and body.get("message") == "Signature has expired"
+        )
+        return status_code, _handle_auth_expiry(
+            client, path, can_refresh=signature_expired
+        )
     elif status_code in [500, 502]:
         try:
             stacktrace = request.json().get(
@@ -852,13 +865,19 @@ def upload(
         files = _build_file_dict(file_path, extra_files)
         opened_files = files
     if progress_callback is not None:
-        total = sum(os.fstat(f.fileno()).st_size for f in files.values())
+        # files may hold non-file parts (e.g. JSON tuples); size only files.
+        file_values = [f for f in files.values() if hasattr(f, "fileno")]
+        total = sum(os.fstat(f.fileno()).st_size for f in file_values)
         offset = 0
         wrapped = {}
         for key, f in files.items():
-            wrapper = _ProgressFileWrapper(f, progress_callback, offset, total)
-            wrapped[key] = wrapper
-            offset += os.fstat(f.fileno()).st_size
+            if hasattr(f, "fileno"):
+                wrapped[key] = _ProgressFileWrapper(
+                    f, progress_callback, offset, total
+                )
+                offset += os.fstat(f.fileno()).st_size
+            else:
+                wrapped[key] = f
         files = wrapped
     try:
         for _ in range(MAX_AUTH_RETRIES):
@@ -943,6 +962,10 @@ def download(
         headers=make_auth_header(client=client),
         stream=True,
     ) as response:
+        if file_path is None:
+            # No destination: materialize the body and return the response.
+            response.content
+            return response
         with open(file_path, "wb") as target_file:
             if progress_callback is not None:
                 total = int(response.headers.get("content-length", 0))
@@ -975,7 +998,6 @@ def get_file_data_from_url(
     for _ in range(MAX_AUTH_RETRIES):
         response = client.session.get(
             url,
-            stream=True,
             headers=make_auth_header(client=client),
         )
         _, retry = check_status(response, url, client=client)
