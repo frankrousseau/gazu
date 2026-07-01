@@ -120,6 +120,8 @@ class AsyncKitsuClient:
         return headers
 
     async def refresh_access_token(self) -> dict[str, str]:
+        if not self.refresh_token:
+            raise NotAuthenticatedException("auth/refresh-token")
         url = get_full_url("auth/refresh-token", client=self)
         headers = {
             "User-Agent": "CGWire Gazu " + __version__,
@@ -163,7 +165,10 @@ async def check_status(
     elif status_code == 403:
         raise NotAllowedException(path)
     elif status_code == 400:
-        data = await response.json()
+        try:
+            data = await response.json()
+        except Exception:
+            data = {}
         raise ParameterException(path, _message_from_data(data))
     elif status_code == 405:
         raise MethodNotAllowedException(path)
@@ -202,7 +207,10 @@ async def check_status(
         raise ValidationException(path, _message_from_data(data))
     elif status_code == 401:
         try:
-            data = await response.json()
+            try:
+                data = await response.json()
+            except Exception:
+                data = {}
             if (
                 client
                 and client.refresh_token
