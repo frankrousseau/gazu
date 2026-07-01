@@ -1322,6 +1322,39 @@ def download_preview_file_cover(
     )
 
 
+def _download_avatar(
+    kind: str,
+    model: str | dict,
+    file_path: str,
+    client: KitsuClient = default,
+    progress_callback=None,
+) -> requests.Response:
+    """Download the avatar of given model kind (persons/projects/...)."""
+    model = normalize_model_parameter(model)
+    return raw.download(
+        f"pictures/thumbnails/{kind}/{model['id']}.png",
+        file_path,
+        client=client,
+        progress_callback=progress_callback,
+    )
+
+
+def _upload_avatar(
+    kind: str,
+    model: str | dict,
+    file_path: str,
+    client: KitsuClient = default,
+    progress_callback=None,
+) -> dict[Literal["thumbnail_path"], str]:
+    """Upload given file as the avatar of given model kind."""
+    path = (
+        f"/pictures/thumbnails/{kind}/{normalize_model_parameter(model)['id']}"
+    )
+    return raw.upload(
+        path, file_path, client=client, progress_callback=progress_callback
+    )
+
+
 def download_person_avatar(
     person: str | dict,
     file_path: str,
@@ -1335,12 +1368,8 @@ def download_person_avatar(
         person (str / dict): The person dict or ID.
         file_path (str): Location on hard drive where to save the file.
     """
-    person = normalize_model_parameter(person)
-    return raw.download(
-        f"pictures/thumbnails/persons/{person['id']}.png",
-        file_path,
-        client=client,
-        progress_callback=progress_callback,
+    return _download_avatar(
+        "persons", person, file_path, client, progress_callback
     )
 
 
@@ -1361,9 +1390,8 @@ def upload_person_avatar(
         dict: Dictionary with a key of 'thumbnail_path' and a value of the
             path to the static image file, relative to the host url.
     """
-    path = f"/pictures/thumbnails/persons/{normalize_model_parameter(person)['id']}"
-    return raw.upload(
-        path, file_path, client=client, progress_callback=progress_callback
+    return _upload_avatar(
+        "persons", person, file_path, client, progress_callback
     )
 
 
@@ -1380,12 +1408,8 @@ def download_project_avatar(
         project (str / dict): The project dict or ID.
         file_path (str): Location on hard drive where to save the file.
     """
-    project = normalize_model_parameter(project)
-    return raw.download(
-        f"pictures/thumbnails/projects/{project['id']}.png",
-        file_path,
-        client=client,
-        progress_callback=progress_callback,
+    return _download_avatar(
+        "projects", project, file_path, client, progress_callback
     )
 
 
@@ -1406,9 +1430,8 @@ def upload_project_avatar(
         dict: Dictionary with a key of 'thumbnail_path' and a value of the
             path to the static image file, relative to the host url.
     """
-    path = f"/pictures/thumbnails/projects/{normalize_model_parameter(project)['id']}"
-    return raw.upload(
-        path, file_path, client=client, progress_callback=progress_callback
+    return _upload_avatar(
+        "projects", project, file_path, client, progress_callback
     )
 
 
@@ -1425,12 +1448,8 @@ def download_organisation_avatar(
         organisation (str / dict): The organisation dict or ID.
         file_path (str): Location on hard drive where to save the file.
     """
-    organisation = normalize_model_parameter(organisation)
-    return raw.download(
-        f"pictures/thumbnails/organisations/{organisation['id']}.png",
-        file_path,
-        client=client,
-        progress_callback=progress_callback,
+    return _download_avatar(
+        "organisations", organisation, file_path, client, progress_callback
     )
 
 
@@ -1451,9 +1470,8 @@ def upload_organisation_avatar(
         dict: Dictionary with a key of 'thumbnail_path' and a value of the
             path to the static image file, relative to the host url.
     """
-    path = f"/pictures/thumbnails/organisations/{normalize_model_parameter(organisation)['id']}"
-    return raw.upload(
-        path, file_path, client=client, progress_callback=progress_callback
+    return _upload_avatar(
+        "organisations", organisation, file_path, client, progress_callback
     )
 
 
