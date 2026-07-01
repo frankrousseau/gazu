@@ -6,7 +6,7 @@ from .sorting import sort_by_name
 from .cache import cache
 from .client import KitsuClient
 from .helpers import normalize_model_parameter
-from .shot import get_sequence
+from . import shot as gazu_shot
 
 default = raw.default_client
 
@@ -225,4 +225,4 @@ def get_sequence_from_scene(
     Return sequence which is parent of given scene.
     """
     scene = normalize_model_parameter(scene)
-    return get_sequence(scene["parent_id"], client=client)
+    return gazu_shot.get_sequence(scene["parent_id"], client=client)
