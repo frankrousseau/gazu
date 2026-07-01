@@ -27,6 +27,8 @@ from . import files
 from . import project
 from . import project_template
 from . import person
+from . import scene
+from . import search
 from . import shot
 from . import studio
 from . import sync
@@ -44,10 +46,12 @@ from .__version__ import __version__
 
 
 def get_host(client=raw.default_client):
+    """Return the API host currently configured on the client."""
     return raw.get_host(client=client)
 
 
 def set_host(url, client=raw.default_client):
+    """Set the API host to query (e.g. "https://kitsu.example.com/api")."""
     raw.set_host(url, client=client)
 
 
@@ -60,6 +64,23 @@ def log_in(
     recovery_code=None,
     client=raw.default_client,
 ):
+    """
+    Log in and store the returned tokens on the client for later requests.
+
+    Args:
+        email (str): User email.
+        password (str): User password.
+        totp (str): TOTP code for 2FA.
+        email_otp (str): Email OTP code.
+        fido_authentication_response: FIDO authentication response.
+        recovery_code (str): Recovery code.
+
+    Returns:
+        dict: The authentication tokens returned by the API.
+
+    Raises:
+        AuthFailedException: when the credentials are rejected.
+    """
     tokens = {}
     try:
         tokens = raw.post(
@@ -85,10 +106,12 @@ def log_in(
 
 
 def send_email_otp(email, client=raw.default_client):
+    """Ask the API to send a one-time password to the given email."""
     return raw.get("auth/email-otp", params={"email": email}, client=client)
 
 
 def log_out(client=raw.default_client):
+    """Log out and clear the tokens stored on the client."""
     tokens = {}
     try:
         raw.get("auth/logout", client=client)
@@ -99,14 +122,17 @@ def log_out(client=raw.default_client):
 
 
 def refresh_access_token(client=raw.default_client):
+    """Refresh the access token using the stored refresh token."""
     return client.refresh_access_token()
 
 
 def get_event_host(client=raw.default_client):
+    """Return the event (websocket) host configured on the client."""
     return raw.get_event_host(client=client)
 
 
 def set_event_host(url, client=raw.default_client):
+    """Set the event (websocket) host used to listen to Kitsu events."""
     raw.set_event_host(url, client=client)
 
 
