@@ -170,7 +170,7 @@ def all_tasks_for_sequence(
     Args:
         sequence (str / dict): The sequence dict or the sequence ID.
 
-    Returns
+    Returns:
         list: Tasks linked to given sequence.
     """
     return _all_tasks_for_entity(
@@ -326,7 +326,7 @@ def all_task_types_for_shot(
     Args:
         shot (str / dict): The shot dict or the shot ID.
 
-    Returns
+    Returns:
         list: Task types of task linked to given shot.
     """
     shot = normalize_model_parameter(shot)
@@ -343,7 +343,7 @@ def all_task_types_for_concept(
     Args:
         concept (str / dict): The concept dict or the concept ID.
 
-    Returns
+    Returns:
         list: Task types of task linked to given concept.
     """
     concept = normalize_model_parameter(concept)
@@ -744,7 +744,9 @@ def new_task(
         assignees (list): List of people assigned to the task.
 
     Returns:
-        Created task.
+        The created task, or the existing one if a task with the same entity,
+        task type and name already exists (in which case the requested
+        task_status/assignees are not re-applied).
     """
     entity = normalize_model_parameter(entity)
     task_type = normalize_model_parameter(task_type)
