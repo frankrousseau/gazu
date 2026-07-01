@@ -204,26 +204,25 @@ def all_entity_links_for_project(
     page: int | None = None,
     limit: int | None = None,
     client: KitsuClient = default,
-) -> dict:
+) -> list[dict] | dict:
     """
     Args:
         project (dict | str): The project dict or ID.
 
     Returns:
-        dict: A dictionary containing entity links for the project. If pagination
-            is used, contains "data" (list of entity link dicts) and pagination
-            metadata. Otherwise, returns a list of entity link dictionaries directly.
-            Each entity link dict contains "entity_in_id", "entity_out_id", and
-            other link-related fields.
+        By default (no ``page``), the full list of entity link dicts for the
+        project. When an explicit ``page`` is given, a single paginated dict
+        with "data" and pagination metadata is returned. Each entity link dict
+        contains "entity_in_id", "entity_out_id" and other link-related fields.
     """
     project = normalize_model_parameter(project)
-    path = f"data/projects/{project['id']}/entity-links"
+    path = f"projects/{project['id']}/entity-links"
     params = {}
     if page is not None:
         params["page"] = page
         if limit is not None:
             params["limit"] = limit
-    return raw.get(path, params=params, client=client)
+    return raw.fetch_all(path, params=params, client=client)
 
 
 def get_episodes_casting(
