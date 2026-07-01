@@ -235,16 +235,17 @@ def add_entity_to_playlist(
         preview_file = normalize_model_parameter(preview_file)
         entry["preview_file_id"] = preview_file["id"]
 
-    if playlist.get("shots") is None:
-        playlist["shots"] = []
-    playlist["shots"].append(entry)
     if persist:
-        playlist = raw.post(
+        return raw.post(
             f"actions/playlists/{playlist['id']}/add-entity",
             entry,
             client=client,
         )
-    return playlist
+
+    updated = dict(playlist)
+    updated["shots"] = list(updated.get("shots") or [])
+    updated["shots"].append(entry)
+    return updated
 
 
 def remove_entity_from_playlist(
