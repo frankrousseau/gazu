@@ -86,6 +86,7 @@ def log_in(
         AuthFailedException: when the credentials are rejected.
     """
     tokens = {}
+    login_error = None
     try:
         tokens = raw.post(
             "auth/login",
@@ -99,10 +100,14 @@ def log_in(
             },
             client=client,
         )
-    except (NotAuthenticatedException, ParameterException):
-        pass
+    except (NotAuthenticatedException, ParameterException) as exc:
+        # Keep the server's reason (wrong 2FA, locked account, ...) instead
+        # of raising a bare AuthFailedException.
+        login_error = exc
 
     if not tokens or tokens.get("login") is False:
+        if login_error is not None:
+            raise AuthFailedException(str(login_error))
         raise AuthFailedException
     else:
         raw.set_tokens(tokens, client=client)

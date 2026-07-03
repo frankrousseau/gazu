@@ -549,6 +549,19 @@ class BaseFuncTestCase(ClientTestCase):
             gazu.log_out()
             self.assertEqual(raw.default_client.tokens, {})
 
+    def test_init_log_in_surfaces_server_message(self):
+        with requests_mock.mock() as mock:
+            mock_route(
+                mock,
+                "POST",
+                "auth/login",
+                text={"message": "Wrong 2FA code"},
+                status_code=400,
+            )
+            with self.assertRaises(AuthFailedException) as context:
+                gazu.log_in("a@b.c", "pw")
+            self.assertIn("Wrong 2FA code", str(context.exception))
+
     def test_init_send_email_otp(self):
         with requests_mock.mock() as mock:
             mock_route(
