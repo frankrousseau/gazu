@@ -45,13 +45,13 @@ def all_scenes(
     return sort_by_name(scenes)
 
 
-@cache
 def all_scenes_for_project(
     project: str | dict, client: KitsuClient = default
 ) -> list[dict]:
     """
     Retrieve all scenes for given project.
     """
+    # No @cache here: all_scenes already caches.
     return all_scenes(project, client=client)
 
 

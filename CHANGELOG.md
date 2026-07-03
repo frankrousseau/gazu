@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `gazu.scene` and `gazu.search` are now importable from the top-level package.
 - `events` connections verify SSL certificates by default (`ssl_verify=True`).
+- `files.get_last_entity_output_revision` and
+  `files.get_last_asset_instance_output_revision` return 0 (instead of 1)
+  when no output file exists yet.
 - Deduplicated the avatar, sync id-map and JWT-refresh helpers.
 
 ### Security

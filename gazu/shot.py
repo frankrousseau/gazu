@@ -703,7 +703,6 @@ def remove_sequence(
     return raw.delete(path, params=params, client=client)
 
 
-@cache
 def all_asset_instances_for_shot(
     shot: str | dict, client: KitsuClient = default
 ) -> list[dict]:
@@ -715,6 +714,7 @@ def all_asset_instances_for_shot(
         list: Asset instances linked to given shot.
     """
     # Kept as an alias of get_asset_instances_for_shot for backward compat.
+    # No @cache here: the delegate already caches.
     return get_asset_instances_for_shot(shot, client=client)
 
 

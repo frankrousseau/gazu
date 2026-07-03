@@ -574,7 +574,15 @@ def push_tasks(
             continue
         task["task_type_id"] = task_type_map[task["task_type_id"]]
         task["task_status_id"] = default_status_id
-        task["assigner_id"] = person_map.get(task["assigner_id"])
+        assigner_id = task["assigner_id"]
+        if assigner_id is not None and assigner_id not in person_map:
+            logger.warning(
+                "Task %s: assigner %s is not mapped to the target, "
+                "importing the task without an assigner.",
+                task.get("id"),
+                assigner_id,
+            )
+        task["assigner_id"] = person_map.get(assigner_id)
         task["project_id"] = project_target["id"]
         task["assignees"] = [
             person_map[person_id]
@@ -737,7 +745,14 @@ def push_task_comment(
     task_status = {"id": task_status_map[comment["task_status_id"]]}
     if author_id is None:
         author_id = person_map.get(comment["person_id"])
-    person = {"id": author_id}
+        if author_id is None:
+            logger.warning(
+                "Comment %s: author %s is not mapped to the target, "
+                "the comment will be attributed to the current user.",
+                comment.get("id"),
+                comment["person_id"],
+            )
+    person = {"id": author_id} if author_id is not None else None
 
     comment_target = task_module.add_comment(
         task,

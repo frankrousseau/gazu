@@ -24,6 +24,7 @@ from .__version__ import __version__
 from .client import (
     url_path_join,
     build_path_with_params,
+    get_message_from_data,
     MAX_AUTH_RETRIES,
 )
 from .encoder import CustomJSONEncoder
@@ -40,20 +41,6 @@ from .exception import (
 )
 
 logger = logging.getLogger("gazu.aio")
-
-
-def _message_from_data(
-    data: Any, default: str = "No additional information"
-) -> str:
-    """
-    Extract Zou's error/message string from a parsed JSON body.
-    """
-    if isinstance(data, dict):
-        for key in ("error", "message"):
-            value = data.get(key)
-            if isinstance(value, str) and value:
-                return value
-    return default
 
 
 class AsyncKitsuClient:
@@ -156,6 +143,39 @@ def get_full_url(path: str, client: AsyncKitsuClient) -> str:
     return url_path_join(client.host, path)
 
 
+async def _handle_auth_expiry(
+    client: AsyncKitsuClient | None, path: str, can_refresh: bool
+) -> bool:
+    """
+    Handle an expired/invalid JWT: refresh the access token when possible,
+    otherwise fall back to the not-authenticated callback.
+
+    Async mirror of ``client._handle_auth_expiry``.
+
+    Returns:
+        bool: True when the request should be retried.
+
+    Raises:
+        NotAuthenticatedException: when the token can't be refreshed and no
+            callback authorizes a retry.
+    """
+    try:
+        if (
+            can_refresh
+            and client
+            and client.refresh_token
+            and client.use_refresh_token
+        ):
+            await client.refresh_access_token()
+            return True
+        raise NotAuthenticatedException(path)
+    except NotAuthenticatedException:
+        if client and client.callback_not_authenticated:
+            if client.callback_not_authenticated(client, path):
+                return True
+        raise
+
+
 async def check_status(
     response: aiohttp.ClientResponse,
     path: str,
@@ -171,7 +191,7 @@ async def check_status(
             data = await response.json()
         except Exception:
             data = {}
-        raise ParameterException(path, _message_from_data(data))
+        raise ParameterException(path, get_message_from_data(data))
     elif status_code == 405:
         raise MethodNotAllowedException(path)
     elif status_code == 413:
@@ -191,51 +211,29 @@ async def check_status(
         # flask-jwt-extended returns 422 with this message when the JWT
         # signature has expired -- this is an auth case, not a validation one.
         if jwt_expired:
-            try:
-                if (
-                    client
-                    and client.refresh_token
-                    and client.use_refresh_token
-                ):
-                    await client.refresh_access_token()
-                    return status_code, True
-                raise NotAuthenticatedException(path)
-            except NotAuthenticatedException:
-                if client and client.callback_not_authenticated:
-                    retry = client.callback_not_authenticated(client, path)
-                    if retry:
-                        return status_code, True
-                raise
-        raise ValidationException(path, _message_from_data(data))
+            return status_code, await _handle_auth_expiry(
+                client, path, can_refresh=True
+            )
+        raise ValidationException(path, get_message_from_data(data))
     elif status_code == 401:
         try:
-            try:
-                data = await response.json()
-            except Exception:
-                data = {}
-            if (
-                client
-                and client.refresh_token
-                and client.use_refresh_token
-                and data.get("message") == "Signature has expired"
-            ):
-                await client.refresh_access_token()
-                return status_code, True
-            else:
-                raise NotAuthenticatedException(path)
-        except NotAuthenticatedException:
-            if client and client.callback_not_authenticated:
-                retry = client.callback_not_authenticated(client, path)
-                if retry:
-                    return status_code, True
-            raise
+            data = await response.json()
+        except Exception:
+            data = {}
+        signature_expired = (
+            isinstance(data, dict)
+            and data.get("message") == "Signature has expired"
+        )
+        return status_code, await _handle_auth_expiry(
+            client, path, can_refresh=signature_expired
+        )
     elif status_code in [500, 502]:
         try:
             data = await response.json()
             stacktrace = data.get(
                 "stacktrace", "No stacktrace sent by the server"
             )
-            message = _message_from_data(
+            message = get_message_from_data(
                 data, default="No message sent by the server"
             )
             logger.error(
@@ -424,30 +422,33 @@ async def upload(
         extra_files = []
     url = get_full_url(path, client)
 
-    form = aiohttp.FormData()
-    for key, value in data.items():
-        form.add_field(key, str(value))
-
     files_to_close = []
-    total_size = 0
+    file_fields = []
     if file_path is not None:
         f = open(file_path, "rb")
         files_to_close.append(f)
-        size = os.fstat(f.fileno()).st_size
-        total_size += size
-        form.add_field("file", f, filename=os.path.basename(file_path))
+        file_fields.append(("file", f, os.path.basename(file_path)))
     for i, extra_path in enumerate(extra_files, start=1):
         f = open(extra_path, "rb")
         files_to_close.append(f)
-        size = os.fstat(f.fileno()).st_size
-        total_size += size
-        form.add_field(f"file-{i}", f, filename=os.path.basename(extra_path))
+        file_fields.append((f"file-{i}", f, os.path.basename(extra_path)))
+
+    def build_form():
+        # aiohttp forbids re-sending a processed FormData: rebuild it (and
+        # rewind the file parts) for every attempt.
+        form = aiohttp.FormData()
+        for key, value in data.items():
+            form.add_field(key, str(value))
+        for name, f, filename in file_fields:
+            f.seek(0)
+            form.add_field(name, f, filename=filename)
+        return form
 
     try:
         for _ in range(MAX_AUTH_RETRIES):
             async with client.session.post(
                 url,
-                data=form,
+                data=build_form(),
                 headers=client.make_auth_header(),
             ) as response:
                 _, retry = await check_status(response, path, client=client)
@@ -467,7 +468,7 @@ async def upload(
         for f in files_to_close:
             f.close()
 
-    message = _message_from_data(result, default="")
+    message = get_message_from_data(result, default="")
     if message:
         raise UploadFailedException(message)
 

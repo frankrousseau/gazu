@@ -886,8 +886,8 @@ def get_last_entity_output_revision(
         name (str): The output name
 
     Returns:
-        int: Last revision of ouput files for given entity, output type and task
-        type.
+        int: Last revision of output files for given entity, output type and
+        task type. 0 when no output file exists yet.
     """
     entity = normalize_model_parameter(entity)
     output_type = normalize_model_parameter(output_type)
@@ -909,6 +909,10 @@ def get_last_asset_instance_output_revision(
 ) -> int:
     """
     Generate last output revision for given asset instance.
+
+    Returns:
+        int: Last revision of output files for given asset instance.
+        0 when no output file exists yet.
     """
     asset_instance = normalize_model_parameter(asset_instance)
     temporal_entity = normalize_model_parameter(temporal_entity)

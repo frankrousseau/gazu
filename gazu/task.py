@@ -52,12 +52,17 @@ def _open_comment_files(comments: list[dict]) -> tuple[dict, list]:
     """
     files = {}
     opened_files = []
-    for x, comment in enumerate(comments):
-        for kind in ("attachment_files", "preview_files"):
-            for y, file_path in enumerate(comment.get(kind) or []):
-                f = open(file_path, "rb")
-                opened_files.append(f)
-                files[f"{kind[:-1]}-{x}-{y}"] = f
+    try:
+        for x, comment in enumerate(comments):
+            for kind in ("attachment_files", "preview_files"):
+                for y, file_path in enumerate(comment.get(kind) or []):
+                    f = open(file_path, "rb")
+                    opened_files.append(f)
+                    files[f"{kind[:-1]}-{x}-{y}"] = f
+    except Exception:
+        for f in opened_files:
+            f.close()
+        raise
     files["comments"] = (None, json.dumps(comments), "application/json")
     return files, opened_files
 

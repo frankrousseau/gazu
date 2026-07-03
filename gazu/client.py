@@ -510,28 +510,23 @@ def delete(
     return response.text
 
 
-def get_message_from_response(
-    response: requests.Response,
+def get_message_from_data(
+    message_json: Any,
     default_message: str = "No additional information",
 ) -> str:
     """
-    A utility function that handles Zou's inconsistent message keys.
-    For a given request, checks if any error messages or regular messages were given and returns their value.
-    If no messages are found, returns a default message.
+    Extract Zou's error/message string from a parsed JSON body.
+    Handles Zou's inconsistent message keys and surfaces Pydantic
+    field-level validation details when present.
 
     Args:
-        response: requests.Response - A response to check.
-        default_message: str - An optional default value to revert to if no message is detected.
+        message_json: The parsed JSON body (any type).
+        default_message: Value returned when no message is found.
 
     Returns:
         str: The message to display to the user.
     """
     message = default_message
-    try:
-        message_json = response.json()
-    except ValueError:
-        return message
-
     if isinstance(message_json, dict):
         for key in ["message", "error"]:
             value = message_json.get(key)
@@ -556,6 +551,29 @@ def get_message_from_response(
                 message = f"{message} ({details})"
 
     return message
+
+
+def get_message_from_response(
+    response: requests.Response,
+    default_message: str = "No additional information",
+) -> str:
+    """
+    A utility function that handles Zou's inconsistent message keys.
+    For a given request, checks if any error messages or regular messages were given and returns their value.
+    If no messages are found, returns a default message.
+
+    Args:
+        response: requests.Response - A response to check.
+        default_message: str - An optional default value to revert to if no message is detected.
+
+    Returns:
+        str: The message to display to the user.
+    """
+    try:
+        message_json = response.json()
+    except ValueError:
+        return default_message
+    return get_message_from_data(message_json, default_message)
 
 
 def _handle_auth_expiry(
@@ -882,7 +900,13 @@ def upload(
                 wrapped[key] = f
         files = wrapped
     try:
-        for _ in range(MAX_AUTH_RETRIES):
+        for attempt in range(MAX_AUTH_RETRIES):
+            if attempt:
+                # The previous attempt consumed the file handles: rewind
+                # them, else the retry would upload empty file parts.
+                for f in files.values():
+                    if hasattr(f, "seek"):
+                        f.seek(0)
             response = client.session.post(
                 url,
                 data=data,
@@ -996,7 +1020,7 @@ def get_file_data_from_url(
         bytes: The data found at the given url.
     """
     if not full:
-        url = get_full_url(url)
+        url = get_full_url(url, client=client)
     for _ in range(MAX_AUTH_RETRIES):
         response = client.session.get(
             url,

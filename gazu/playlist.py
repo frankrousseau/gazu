@@ -207,7 +207,8 @@ def add_entity_to_playlist(
     to review.
 
     Args:
-        playlist (dict): Playlist object to modify.
+        playlist (dict): The playlist to add the entity to. The argument is
+            not mutated: use the returned playlist.
         entity (str / dict): The entity to add or its ID.
         preview_file (str / dict): Set it to force a give revision to review.
         persist (bool): Set it to True to save the result to the API.

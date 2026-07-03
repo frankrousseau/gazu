@@ -216,6 +216,21 @@ class FilesTestCase(unittest.TestCase):
             )
             self.assertEqual(revision, 2)
 
+    def test_last_output_revision_no_output_files(self):
+        with requests_mock.mock() as mock:
+            path = "data/entities/entity-01/output-files/next-revision"
+            mock.post(
+                gazu.client.get_full_url(path),
+                text=json.dumps({"next_revision": 1}),
+            )
+            entity = {"id": "entity-01"}
+            output_type = {"id": "output-type-01"}
+            task_type = {"id": "task-type-01"}
+            revision = gazu.files.get_last_entity_output_revision(
+                entity, output_type, task_type
+            )
+            self.assertEqual(revision, 0)
+
     def test_get_working_file(self):
         with requests_mock.mock() as mock:
             path = "/data/working-files/working-file-1"
