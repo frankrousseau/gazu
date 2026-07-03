@@ -122,7 +122,7 @@ def all_tasks_for_sequence(
     sequence: str | dict, client: KitsuClient = default
 ) -> list[dict]:
     """
-    Return the list of tasks for given asset and current user.
+    Return the list of tasks for given sequence and current user.
     """
     sequence = normalize_model_parameter(sequence)
     path = f"user/sequences/{sequence['id']}/tasks"
@@ -187,7 +187,7 @@ def all_task_types_for_sequence(
 ) -> list[dict]:
     """
     Returns:
-        list: Task types for given asset and current user.
+        list: Task types for given sequence and current user.
     """
     sequence = normalize_model_parameter(sequence)
     path = f"user/sequences/{sequence['id']}/task-types"
@@ -223,6 +223,7 @@ def all_episodes_for_project(
     Returns:
         list: Episodes for which user has tasks assigned for given project.
     """
+    project = normalize_model_parameter(project)
     path = f"user/projects/{project['id']}/episodes"
     asset_types = raw.fetch_all(path, client=client)
     return sort_by_name(asset_types)
@@ -260,6 +261,57 @@ def all_scenes_for_sequence(
     path = f"user/sequences/{sequence['id']}/scenes"
     scenes = raw.fetch_all(path, client=client)
     return sort_by_name(scenes)
+
+
+@cache
+def all_assets_for_project(
+    project: str | dict, client: KitsuClient = default
+) -> list[dict]:
+    """
+    Args:
+        project (str / dict): The project dict or the project ID.
+
+    Returns:
+        list: Assets for which user has tasks assigned for given project.
+    """
+    project = normalize_model_parameter(project)
+    path = f"user/projects/{project['id']}/assets"
+    assets = raw.fetch_all(path, client=client)
+    return sort_by_name(assets)
+
+
+@cache
+def all_scenes_for_project(
+    project: str | dict, client: KitsuClient = default
+) -> list[dict]:
+    """
+    Args:
+        project (str / dict): The project dict or the project ID.
+
+    Returns:
+        list: Scenes for which user has tasks assigned for given project.
+    """
+    project = normalize_model_parameter(project)
+    path = f"user/projects/{project['id']}/scenes"
+    scenes = raw.fetch_all(path, client=client)
+    return sort_by_name(scenes)
+
+
+@cache
+def all_sequences_for_episode(
+    episode: str | dict, client: KitsuClient = default
+) -> list[dict]:
+    """
+    Args:
+        episode (str / dict): The episode dict or the episode ID.
+
+    Returns:
+        list: Sequences for which user has tasks assigned for given episode.
+    """
+    episode = normalize_model_parameter(episode)
+    path = f"user/episodes/{episode['id']}/sequences"
+    sequences = raw.fetch_all(path, client=client)
+    return sort_by_name(sequences)
 
 
 @cache
@@ -328,7 +380,7 @@ def is_authenticated(client: KitsuClient = default) -> bool:
 
 def all_filters(client: KitsuClient = default) -> list[dict]:
     """
-    Return:
+    Returns:
         list: all filters for current user.
     """
     return raw.fetch_all("user/filters", client=client)
@@ -356,7 +408,9 @@ def new_filter(
         dict: Created filter.
     """
     project_id = (
-        normalize_model_parameter(project) if project is not None else None
+        normalize_model_parameter(project)["id"]
+        if project is not None
+        else None
     )
 
     return raw.post(

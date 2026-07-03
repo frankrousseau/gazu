@@ -26,10 +26,17 @@ from .exception import (
 from urllib.parse import urlencode
 
 logger = logging.getLogger("gazu")
+# Library convention: no output unless the host app configures logging.
+logger.addHandler(logging.NullHandler())
+
+# Bound the auth-recovery retries to avoid an infinite loop.
+MAX_AUTH_RETRIES = 3
 
 if os.getenv("GAZU_DEBUG", "false").lower() == "true":
-    logging.basicConfig(level=logging.DEBUG)
+    # Debug opt-in: only touch the "gazu" logger, never the root logger
+    # (configuring the host application's logging is not gazu's business).
     logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler())
 
 
 class KitsuClient(object):
@@ -83,6 +90,8 @@ class KitsuClient(object):
         Returns:
             dict: The new access token.
         """
+        if not self.refresh_token:
+            raise NotAuthenticatedException("auth/refresh-token")
         response = self.session.get(
             get_full_url("auth/refresh-token", client=self),
             headers={
@@ -94,7 +103,8 @@ class KitsuClient(object):
         tokens = response.json()
 
         self.access_token = tokens["access_token"]
-        self.refresh_token = None
+        # Keep the current refresh token unless the server returns a new one.
+        self.refresh_token = tokens.get("refresh_token", self.refresh_token)
 
         return tokens
 
@@ -385,13 +395,16 @@ def get(
     """
     logger.debug("GET %s", get_full_url(path, client))
     path = build_path_with_params(path, params)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         response = client.session.get(
             get_full_url(path, client=client),
             headers=make_auth_header(client=client),
         )
         _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(path)
 
     if json_response:
         return response.json()
@@ -421,8 +434,7 @@ def post(path: str, data: Any, client: KitsuClient = default_client) -> Any:
     }
     if not any(field in data for field in sensitive_fields):
         logger.debug("Body: %s", data)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         headers = make_auth_header(client=client)
         headers["Content-Type"] = "application/json"
         response = client.session.post(
@@ -431,6 +443,10 @@ def post(path: str, data: Any, client: KitsuClient = default_client) -> Any:
             headers=headers,
         )
         _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(path)
     try:
         result = response.json()
     except json.JSONDecodeError:
@@ -453,8 +469,7 @@ def put(path: str, data: dict, client: KitsuClient = default_client) -> Any:
     """
     logger.debug("PUT %s", get_full_url(path, client))
     logger.debug("Body: %s", data)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         headers = make_auth_header(client=client)
         headers["Content-Type"] = "application/json"
         response = client.session.put(
@@ -463,6 +478,10 @@ def put(path: str, data: dict, client: KitsuClient = default_client) -> Any:
             headers=headers,
         )
         _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(path)
     return response.json()
 
 
@@ -483,37 +502,35 @@ def delete(
     logger.debug("DELETE %s", get_full_url(path, client))
     path = build_path_with_params(path, params)
 
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         response = client.session.delete(
             get_full_url(path, client), headers=make_auth_header(client=client)
         )
         _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(path)
     return response.text
 
 
-def get_message_from_response(
-    response: requests.Response,
+def get_message_from_data(
+    message_json: Any,
     default_message: str = "No additional information",
 ) -> str:
     """
-    A utility function that handles Zou's inconsistent message keys.
-    For a given request, checks if any error messages or regular messages were given and returns their value.
-    If no messages are found, returns a default message.
+    Extract Zou's error/message string from a parsed JSON body.
+    Handles Zou's inconsistent message keys and surfaces Pydantic
+    field-level validation details when present.
 
     Args:
-        response: requests.Response - A response to check.
-        default_message: str - An optional default value to revert to if no message is detected.
+        message_json: The parsed JSON body (any type).
+        default_message: Value returned when no message is found.
 
     Returns:
         str: The message to display to the user.
     """
     message = default_message
-    try:
-        message_json = response.json()
-    except ValueError:
-        return message
-
     if isinstance(message_json, dict):
         for key in ["message", "error"]:
             value = message_json.get(key)
@@ -538,6 +555,61 @@ def get_message_from_response(
                 message = f"{message} ({details})"
 
     return message
+
+
+def get_message_from_response(
+    response: requests.Response,
+    default_message: str = "No additional information",
+) -> str:
+    """
+    A utility function that handles Zou's inconsistent message keys.
+    For a given request, checks if any error messages or regular messages were given and returns their value.
+    If no messages are found, returns a default message.
+
+    Args:
+        response: requests.Response - A response to check.
+        default_message: str - An optional default value to revert to if no message is detected.
+
+    Returns:
+        str: The message to display to the user.
+    """
+    try:
+        message_json = response.json()
+    except ValueError:
+        return default_message
+    return get_message_from_data(message_json, default_message)
+
+
+def _handle_auth_expiry(
+    client: KitsuClient, path: str, can_refresh: bool
+) -> bool:
+    """
+    Handle an expired/invalid JWT: refresh the access token when possible,
+    otherwise fall back to the not-authenticated callback.
+
+    Returns:
+        bool: True when the request should be retried.
+
+    Raises:
+        NotAuthenticatedException: when the token can't be refreshed and no
+            callback authorizes a retry.
+    """
+    try:
+        if (
+            can_refresh
+            and client
+            and client.refresh_token
+            and client.use_refresh_token
+        ):
+            client.refresh_access_token()
+            logger.debug("token refreshed for %s", path)
+            return True
+        raise NotAuthenticatedException(path)
+    except NotAuthenticatedException:
+        if client and client.callback_not_authenticated:
+            if client.callback_not_authenticated(client, path):
+                return True
+        raise
 
 
 def check_status(
@@ -585,12 +657,6 @@ def check_status(
             body = request.json()
         except Exception:
             body = {}
-        message = "No additional information"
-        if isinstance(body, dict):
-            for key in ["error", "message"]:
-                if body.get(key):
-                    message = body[key]
-                    break
         jwt_expired = (
             isinstance(body, dict)
             and body.get("message") == "Signature has expired"
@@ -598,40 +664,22 @@ def check_status(
         # flask-jwt-extended returns 422 with this message when the JWT
         # signature has expired -- this is an auth case, not a validation one.
         if jwt_expired:
-            try:
-                if (
-                    client
-                    and client.refresh_token
-                    and client.use_refresh_token
-                ):
-                    client.refresh_access_token()
-                    return status_code, True
-                raise NotAuthenticatedException(path)
-            except NotAuthenticatedException:
-                if client and client.callback_not_authenticated:
-                    retry = client.callback_not_authenticated(client, path)
-                    if retry:
-                        return status_code, True
-                raise
-        raise ValidationException(path, message)
+            return status_code, _handle_auth_expiry(
+                client, path, can_refresh=True
+            )
+        raise ValidationException(path, get_message_from_response(request))
     elif status_code == 401:
         try:
-            if (
-                client
-                and client.refresh_token
-                and client.use_refresh_token
-                and request.json().get("message") == "Signature has expired"
-            ):
-                client.refresh_access_token()
-                return status_code, True
-            else:
-                raise NotAuthenticatedException(path)
-        except NotAuthenticatedException:
-            if client and client.callback_not_authenticated:
-                retry = client.callback_not_authenticated(client, path)
-                if retry:
-                    return status_code, True
-            raise
+            body = request.json()
+        except Exception:
+            body = {}
+        signature_expired = (
+            isinstance(body, dict)
+            and body.get("message") == "Signature has expired"
+        )
+        return status_code, _handle_auth_expiry(
+            client, path, can_refresh=signature_expired
+        )
     elif status_code in [500, 502]:
         try:
             stacktrace = request.json().get(
@@ -786,7 +834,9 @@ def update(
 
 
 class _ProgressFileWrapper:
-    """Wraps a file object to track read progress via a callback."""
+    """
+    Wraps a file object to track read progress via a callback.
+    """
 
     def __init__(self, file_obj, callback, offset, total):
         self._file = file_obj
@@ -840,17 +890,28 @@ def upload(
         files = _build_file_dict(file_path, extra_files)
         opened_files = files
     if progress_callback is not None:
-        total = sum(os.fstat(f.fileno()).st_size for f in files.values())
+        # files may hold non-file parts (e.g. JSON tuples); size only files.
+        file_values = [f for f in files.values() if hasattr(f, "fileno")]
+        total = sum(os.fstat(f.fileno()).st_size for f in file_values)
         offset = 0
         wrapped = {}
         for key, f in files.items():
-            wrapper = _ProgressFileWrapper(f, progress_callback, offset, total)
-            wrapped[key] = wrapper
-            offset += os.fstat(f.fileno()).st_size
+            if hasattr(f, "fileno"):
+                wrapped[key] = _ProgressFileWrapper(
+                    f, progress_callback, offset, total
+                )
+                offset += os.fstat(f.fileno()).st_size
+            else:
+                wrapped[key] = f
         files = wrapped
     try:
-        retry = True
-        while retry:
+        for attempt in range(MAX_AUTH_RETRIES):
+            if attempt:
+                # The previous attempt consumed the file handles: rewind
+                # them, else the retry would upload empty file parts.
+                for f in files.values():
+                    if hasattr(f, "seek"):
+                        f.seek(0)
             response = client.session.post(
                 url,
                 data=data,
@@ -858,6 +919,10 @@ def upload(
                 files=files,
             )
             _, retry = check_status(response, path, client=client)
+            if not retry:
+                break
+        else:
+            raise NotAuthenticatedException(path)
     finally:
         if opened_files:
             for f in opened_files.values():
@@ -928,6 +993,10 @@ def download(
         headers=make_auth_header(client=client),
         stream=True,
     ) as response:
+        if file_path is None:
+            # No destination: materialize the body and return the response.
+            response.content
+            return response
         with open(file_path, "wb") as target_file:
             if progress_callback is not None:
                 total = int(response.headers.get("content-length", 0))
@@ -956,15 +1025,17 @@ def get_file_data_from_url(
         bytes: The data found at the given url.
     """
     if not full:
-        url = get_full_url(url)
-    retry = True
-    while retry:
+        url = get_full_url(url, client=client)
+    for _ in range(MAX_AUTH_RETRIES):
         response = client.session.get(
             url,
-            stream=True,
             headers=make_auth_header(client=client),
         )
         _, retry = check_status(response, url, client=client)
+        if not retry:
+            break
+    else:
+        raise NotAuthenticatedException(url)
     return response.content
 
 

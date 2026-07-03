@@ -216,6 +216,21 @@ class FilesTestCase(unittest.TestCase):
             )
             self.assertEqual(revision, 2)
 
+    def test_last_output_revision_no_output_files(self):
+        with requests_mock.mock() as mock:
+            path = "data/entities/entity-01/output-files/next-revision"
+            mock.post(
+                gazu.client.get_full_url(path),
+                text=json.dumps({"next_revision": 1}),
+            )
+            entity = {"id": "entity-01"}
+            output_type = {"id": "output-type-01"}
+            task_type = {"id": "task-type-01"}
+            revision = gazu.files.get_last_entity_output_revision(
+                entity, output_type, task_type
+            )
+            self.assertEqual(revision, 0)
+
     def test_get_working_file(self):
         with requests_mock.mock() as mock:
             path = "/data/working-files/working-file-1"
@@ -1382,6 +1397,17 @@ class FilesTestCase(unittest.TestCase):
                 )
                 self.assertTrue(os.path.exists("./test.png"))
                 os.remove("./test.png")
+
+    def test_extract_frame_from_preview_without_file_path(self):
+        # Regression: file_path=None used to crash in open(None, "wb").
+        with open("./tests/fixtures/v1.png", "rb") as frame_file:
+            with requests_mock.mock() as mock:
+                path = f"pictures/preview-files/{fakeid('preview-1')}/extract-frame/100"
+                mock.get(gazu.client.get_full_url(path), body=frame_file)
+                response = gazu.files.extract_frame_from_preview(
+                    fakeid("preview-1"), 100
+                )
+                self.assertEqual(response.status_code, 200)
 
     def test_update_preview_position(self):
         with requests_mock.mock() as mock:

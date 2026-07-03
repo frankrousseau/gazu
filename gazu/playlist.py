@@ -73,6 +73,10 @@ def all_playlists_for_episode(
     Returns:
         list: All playlists for the given episode.
     """
+    episode = normalize_model_parameter(episode)
+    # Fetch the episode when only an ID was given, to get its project_id.
+    if "project_id" not in episode:
+        episode = raw.fetch_one("episodes", episode["id"], client=client)
     project = normalize_model_parameter(episode["project_id"])
     return sort_by_name(
         raw.fetch_all(
@@ -203,7 +207,8 @@ def add_entity_to_playlist(
     to review.
 
     Args:
-        playlist (dict): Playlist object to modify.
+        playlist (dict): The playlist to add the entity to. The argument is
+            not mutated: use the returned playlist.
         entity (str / dict): The entity to add or its ID.
         preview_file (str / dict): Set it to force a give revision to review.
         persist (bool): Set it to True to save the result to the API.
@@ -214,7 +219,7 @@ def add_entity_to_playlist(
     entity = normalize_model_parameter(entity)
 
     if preview_file is None:
-        preview_files = get_entity_preview_files(entity)
+        preview_files = get_entity_preview_files(entity, client=client)
         for task_type_id in preview_files.keys():
             task_type_files = preview_files[task_type_id]
             if not task_type_files:
@@ -231,16 +236,17 @@ def add_entity_to_playlist(
         preview_file = normalize_model_parameter(preview_file)
         entry["preview_file_id"] = preview_file["id"]
 
-    if playlist.get("shots") is None:
-        playlist["shots"] = []
-    playlist["shots"].append(entry)
     if persist:
-        playlist = raw.post(
+        return raw.post(
             f"actions/playlists/{playlist['id']}/add-entity",
             entry,
             client=client,
         )
-    return playlist
+
+    updated = dict(playlist)
+    updated["shots"] = list(updated.get("shots") or [])
+    updated["shots"].append(entry)
+    return updated
 
 
 def remove_entity_from_playlist(
@@ -310,7 +316,7 @@ def delete_playlist(
         playlist (str / dict): The playlist dict or id.
 
     Returns:
-        Response: Request response object.
+        str: The API response text.
     """
     playlist = normalize_model_parameter(playlist)
     return raw.delete(f"data/playlists/{playlist['id']}", client=client)

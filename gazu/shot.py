@@ -415,15 +415,17 @@ def new_shot(
         project (str / dict): The project dict or the project ID.
         sequence (str / dict): The sequence dict or the sequence ID.
         name (str): The name of the shot to create.
+        nb_frames (int): Number of frames of the shot.
         frame_in (int): Frame in value for the shot.
         frame_out (int): Frame out value for the shot.
+        description (str): Description of the shot.
         data (dict): Free field to set metadata of any kind.
 
     Returns:
         dict: Created shot.
     """
-    if data is None:
-        data = {}
+    # Copy to avoid mutating the dict provided by the caller.
+    data = dict(data) if data else {}
     project = normalize_model_parameter(project)
     sequence = normalize_model_parameter(sequence)
 
@@ -534,13 +536,9 @@ def update_sequence_data(
         data = {}
     sequence = normalize_model_parameter(sequence)
     current_sequence = get_sequence(sequence["id"], client=client)
-
-    if not current_sequence.get("data"):
-        current_sequence["data"] = {}
-
     updated_sequence = {
         "id": current_sequence["id"],
-        "data": {**current_sequence["data"], **data},
+        "data": {**(current_sequence.get("data") or {}), **data},
     }
     return update_sequence(updated_sequence, client=client)
 
@@ -557,7 +555,7 @@ def remove_shot(
 
     Args:
         shot (str / dict): Shot to remove.
-        force (bool): Whether to force deletion of the asset regardless of
+        force (bool): Whether to force deletion of the shot regardless of
             whether it has links to tasks.
     """
     shot = normalize_model_parameter(shot)
@@ -705,7 +703,6 @@ def remove_sequence(
     return raw.delete(path, params=params, client=client)
 
 
-@cache
 def all_asset_instances_for_shot(
     shot: str | dict, client: KitsuClient = default
 ) -> list[dict]:
@@ -716,8 +713,9 @@ def all_asset_instances_for_shot(
     Returns:
         list: Asset instances linked to given shot.
     """
-    shot = normalize_model_parameter(shot)
-    return raw.get(f"data/shots/{shot['id']}/asset-instances", client=client)
+    # Kept as an alias of get_asset_instances_for_shot for backward compat.
+    # No @cache here: the delegate already caches.
+    return get_asset_instances_for_shot(shot, client=client)
 
 
 def add_asset_instance_to_shot(
@@ -850,7 +848,7 @@ def export_shots_with_csv(
             exists it will be overwritten.
         episode (str | dict | None):
             Only export Shots that are linked to the given Episode, which can
-            be provided as an ID string or model dict. If None, all assets will
+            be provided as an ID string or model dict. If None, all shots will
             be exported.
         assigned_to (str | dict | None):
             Only export Shots that have one or more Tasks assigned to the

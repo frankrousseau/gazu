@@ -126,6 +126,7 @@ def new_concept(
     Args:
         project (str / dict): The project dict or the project ID.
         name (str): The name of the concept to create.
+        description (str): Description of the concept.
         data (dict): Free field to set metadata of any kind.
         entity_concept_links (list): List of entities to tag, as either
             ID strings or model dicts.

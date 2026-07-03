@@ -13,7 +13,6 @@ from .helpers import (
 from .cache import cache
 from .client import KitsuClient
 
-
 default = raw.default_client
 
 
@@ -52,7 +51,7 @@ def get_time_spents_range(
     client: KitsuClient = default,
 ) -> list:
     """
-    Gets the time spents of the current user for the given date range.
+    Gets the time spents of the given person for the given date range.
 
     Args:
         person_id (str): An uuid identifying a person.
@@ -362,7 +361,7 @@ def update_person(person: dict, client: KitsuClient = default) -> dict:
         dict: The updated person.
     """
 
-    if "departments" in person:
+    if isinstance(person, dict) and "departments" in person:
         person["departments"] = normalize_list_of_models_for_links(
             person["departments"]
         )

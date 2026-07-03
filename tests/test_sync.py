@@ -74,7 +74,7 @@ class SyncestCase(unittest.TestCase):
         self.assertEqual(unexpected, [{"id": "asset-4", "name": "Asset 4"}])
         source_list = []
         target_list = []
-        (missing, unexpected) = gazu.sync.get_model_list_diff(
+        missing, unexpected = gazu.sync.get_model_list_diff(
             source_list, target_list
         )
         self.assertEqual(missing, [])
@@ -90,7 +90,7 @@ class SyncestCase(unittest.TestCase):
             {"entity_in_id": "shot-2", "entity_out_id": "asset-2"},
             {"entity_in_id": "shot-4", "entity_out_id": "asset-4"},
         ]
-        (missing, unexpected) = gazu.sync.get_link_list_diff(
+        missing, unexpected = gazu.sync.get_link_list_diff(
             source_list, target_list
         )
         self.assertEqual(
@@ -108,7 +108,7 @@ class SyncestCase(unittest.TestCase):
         )
         source_list = []
         target_list = []
-        (missing, unexpected) = gazu.sync.get_link_list_diff(
+        missing, unexpected = gazu.sync.get_link_list_diff(
             source_list, target_list
         )
         self.assertEqual(missing, [])

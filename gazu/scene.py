@@ -6,7 +6,7 @@ from .sorting import sort_by_name
 from .cache import cache
 from .client import KitsuClient
 from .helpers import normalize_model_parameter
-from .shot import get_sequence
+from . import shot as gazu_shot
 
 default = raw.default_client
 
@@ -45,16 +45,14 @@ def all_scenes(
     return sort_by_name(scenes)
 
 
-@cache
 def all_scenes_for_project(
     project: str | dict, client: KitsuClient = default
 ) -> list[dict]:
     """
     Retrieve all scenes for given project.
     """
-    project = normalize_model_parameter(project)
-    scenes = raw.fetch_all(f"projects/{project['id']}/scenes", client=client)
-    return sort_by_name(scenes)
+    # No @cache here: all_scenes already caches.
+    return all_scenes(project, client=client)
 
 
 @cache
@@ -86,12 +84,11 @@ def get_scene_by_name(
     Returns scene corresponding to given sequence and name.
     """
     sequence = normalize_model_parameter(sequence)
-    result = raw.fetch_all(
+    return raw.fetch_first(
         "scenes/all",
         {"parent_id": sequence["id"], "name": scene_name},
         client=client,
     )
-    return next(iter(result or []), None)
 
 
 def update_scene(scene: dict, client: KitsuClient = default) -> dict:
@@ -228,4 +225,4 @@ def get_sequence_from_scene(
     Return sequence which is parent of given scene.
     """
     scene = normalize_model_parameter(scene)
-    return get_sequence(scene["parent_id"], client=client)
+    return gazu_shot.get_sequence(scene["parent_id"], client=client)

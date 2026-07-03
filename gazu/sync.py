@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
+
+from typing import Callable
 
 from . import client as raw
 from . import asset as asset_module
@@ -14,6 +17,8 @@ from . import task as task_module
 
 from .client import KitsuClient
 from .helpers import normalize_model_parameter, validate_date_format
+
+logger = logging.getLogger("gazu.sync")
 
 default = raw.default_client
 
@@ -97,7 +102,7 @@ def import_entity_links(
         links (list): Entity links to import.
 
     Returns:
-        dict: Entity links created.
+        list: Entity links created.
     """
     return raw.post("import/kitsu/entity-links", links, client=client)
 
@@ -165,8 +170,8 @@ def get_id_map_by_name(
 ) -> dict:
     """
     Args:
-        source_list (list): List of links to compare.
-        target_list (list): List of links for which we want a diff.
+        source_list (list): Source models to map.
+        target_list (list): Target models to match against by name.
 
     Returns:
         dict: A dict where keys are the source model names and the values are
@@ -189,14 +194,14 @@ def get_id_map_by_id(
 ) -> dict:
     """
     Args:
-        source_list (list): List of links to compare.
-        target_list (list): List of links for which we want a diff.
+        source_list (list): Source models to map from.
+        target_list (list): Target models to map to.
+        field (str): Field used to match models across lists (default "name").
 
     Returns:
-        dict: A dict where keys are the source model names and the values are
-        the IDs of the target models with same name.
-        It's useful to match a model from the source list to its relative in
-        the target list based on its name.
+        dict: A dict where keys are the source model IDs and values are the
+        IDs of the target models matched on the given field. Useful to match a
+        model from the source list to its counterpart in the target list.
     """
     link_map = {}
     name_map = {}
@@ -215,12 +220,35 @@ def is_changed(source_model: dict, target_model: dict) -> bool:
         target_model (dict): Matching model from the target API.
 
     Returns:
-        bool: True if the source model is older than the target model (based on
-        `updated_at` field)
+        bool: True if the source model is more recent than the target model
+        (based on the `updated_at` field)
     """
     source_date = source_model["updated_at"]
     target_date = target_model["updated_at"]
     return source_date > target_date
+
+
+def _get_sync_id_map(
+    source_client: KitsuClient,
+    target_client: KitsuClient,
+    fetch_all: Callable,
+    field: str = "name",
+) -> dict:
+    """
+    Build an id map between two instances for a given model.
+
+    Args:
+        source_client (KitsuClient): client to get data from source API
+        target_client (KitsuClient): client to push data to target API
+        fetch_all (Callable): function returning all models for a client.
+        field (str): field used to match models (default "name").
+
+    Returns:
+        dict: A dict matching source model ids with target model ids.
+    """
+    source = fetch_all(client=source_client)
+    target = fetch_all(client=target_client)
+    return get_id_map_by_id(source, target, field=field)
 
 
 def get_sync_department_id_map(
@@ -234,9 +262,9 @@ def get_sync_department_id_map(
     Returns:
         dict: A dict matching source departments ids with target department ids
     """
-    departments_source = person_module.all_departments(client=source_client)
-    departments_target = person_module.all_departments(client=target_client)
-    return get_id_map_by_id(departments_source, departments_target)
+    return _get_sync_id_map(
+        source_client, target_client, person_module.all_departments
+    )
 
 
 def get_sync_asset_type_id_map(
@@ -250,9 +278,9 @@ def get_sync_asset_type_id_map(
     Returns:
         dict: A dict matching source asset type ids with target asset type ids
     """
-    asset_types_source = asset_module.all_asset_types(client=source_client)
-    asset_types_target = asset_module.all_asset_types(client=target_client)
-    return get_id_map_by_id(asset_types_source, asset_types_target)
+    return _get_sync_id_map(
+        source_client, target_client, asset_module.all_asset_types
+    )
 
 
 def get_sync_project_id_map(
@@ -266,9 +294,9 @@ def get_sync_project_id_map(
     Returns:
         dict: A dict matching source project ids with target project ids
     """
-    projects_source = project_module.all_projects(client=source_client)
-    projects_target = project_module.all_projects(client=target_client)
-    return get_id_map_by_id(projects_source, projects_target)
+    return _get_sync_id_map(
+        source_client, target_client, project_module.all_projects
+    )
 
 
 def get_sync_task_type_id_map(
@@ -282,9 +310,9 @@ def get_sync_task_type_id_map(
     Returns:
         dict: A dict matching source task type ids with target task type ids
     """
-    task_types_source = task_module.all_task_types(client=source_client)
-    task_types_target = task_module.all_task_types(client=target_client)
-    return get_id_map_by_id(task_types_source, task_types_target)
+    return _get_sync_id_map(
+        source_client, target_client, task_module.all_task_types
+    )
 
 
 def get_sync_task_status_id_map(
@@ -299,9 +327,9 @@ def get_sync_task_status_id_map(
         dict: A dict matching source task status ids with target task status
               ids
     """
-    task_statuses_source = task_module.all_task_statuses(client=source_client)
-    task_statuses_target = task_module.all_task_statuses(client=target_client)
-    return get_id_map_by_id(task_statuses_source, task_statuses_target)
+    return _get_sync_id_map(
+        source_client, target_client, task_module.all_task_statuses
+    )
 
 
 def get_sync_person_id_map(
@@ -315,9 +343,12 @@ def get_sync_person_id_map(
     Returns:
         dict: A dict matching source person ids with target person ids
     """
-    persons_source = person_module.all_persons(client=source_client)
-    persons_target = person_module.all_persons(client=target_client)
-    return get_id_map_by_id(persons_source, persons_target, field="email")
+    return _get_sync_id_map(
+        source_client,
+        target_client,
+        person_module.all_persons,
+        field="email",
+    )
 
 
 def push_assets(
@@ -523,7 +554,7 @@ def push_tasks(
         client_target (KitsuClient): client to push data to target API
 
     Returns:
-        list: Pushed entity links
+        list: Pushed tasks
     """
     default_status_id = normalize_model_parameter(default_status)["id"]
     task_type_map = get_sync_task_type_id_map(client_source, client_target)
@@ -532,16 +563,34 @@ def push_tasks(
     tasks = task_module.all_tasks_for_project(
         project_source, client=client_source
     )
+    mapped_tasks = []
     for task in tasks:
+        if task["task_type_id"] not in task_type_map:
+            logger.warning(
+                "Skipping task %s: task type %s is not mapped to the target.",
+                task.get("id"),
+                task["task_type_id"],
+            )
+            continue
         task["task_type_id"] = task_type_map[task["task_type_id"]]
         task["task_status_id"] = default_status_id
-        task["assigner_id"] = person_map[task["assigner_id"]]
+        assigner_id = task["assigner_id"]
+        if assigner_id is not None and assigner_id not in person_map:
+            logger.warning(
+                "Task %s: assigner %s is not mapped to the target, "
+                "importing the task without an assigner.",
+                task.get("id"),
+                assigner_id,
+            )
+        task["assigner_id"] = person_map.get(assigner_id)
         task["project_id"] = project_target["id"]
-
         task["assignees"] = [
-            person_map[person_id] for person_id in task["assignees"]
+            person_map[person_id]
+            for person_id in task["assignees"]
+            if person_id in person_map
         ]
-    return import_tasks(tasks, client=client_target)
+        mapped_tasks.append(task)
+    return import_tasks(mapped_tasks, client=client_target)
 
 
 def push_tasks_comments(
@@ -560,7 +609,7 @@ def push_tasks_comments(
         client_target (KitsuClient): client to push data to target API
 
     Returns:
-        list: Created comments
+        list: Source tasks whose comments were pushed
     """
     task_status_map = get_sync_task_status_id_map(client_source, client_target)
     person_map = get_sync_person_id_map(client_source, client_target)
@@ -608,7 +657,8 @@ def push_task_comments(
             client_source,
             client_target,
         )
-        comments_target.append(comment_target)
+        if comment_target is not None:
+            comments_target.append(comment_target)
     return comments_target
 
 
@@ -685,10 +735,24 @@ def push_task_comment(
                 }
             )
 
+    if comment["task_status_id"] not in task_status_map:
+        logger.warning(
+            "Skipping comment %s: task status %s is not mapped to the target.",
+            comment.get("id"),
+            comment["task_status_id"],
+        )
+        return
     task_status = {"id": task_status_map[comment["task_status_id"]]}
     if author_id is None:
-        author_id = person_map[comment["person_id"]]
-    person = {"id": author_id}
+        author_id = person_map.get(comment["person_id"])
+        if author_id is None:
+            logger.warning(
+                "Comment %s: author %s is not mapped to the target, "
+                "the comment will be attributed to the current user.",
+                comment.get("id"),
+                comment["person_id"],
+            )
+    person = {"id": author_id} if author_id is not None else None
 
     comment_target = task_module.add_comment(
         task,

@@ -46,7 +46,7 @@ class EventsNamespace(socketio.ClientNamespace):
 
 def init(
     client: KitsuClient = default_client,
-    ssl_verify: bool = False,
+    ssl_verify: bool = True,
     reconnection: bool = True,
     logger: bool = False,
     **kwargs: Any,

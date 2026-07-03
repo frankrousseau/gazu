@@ -13,7 +13,7 @@ from gazu.exception import DownloadFileException
 import urllib.parse as urlparse
 
 _UUID_RE = re.compile(
-    "([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}){1}"
+    "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}"
 )
 
 
@@ -39,7 +39,7 @@ def normalize_model_parameter(
         except Exception:
             raise ValueError("Failed to cast argument to str")
 
-        if _UUID_RE.match(id_str):
+        if _UUID_RE.fullmatch(id_str):
             return {"id": id_str}
         else:
             raise ValueError("Wrong format: expected ID string or Data dict")
@@ -87,7 +87,7 @@ def download_file(
     url: str, file_path: str | None = None, headers: dict | None = None
 ) -> str:
     """
-    Download file located at *file_path* to given url *url*.
+    Download the file at *url* and store it at *file_path*.
 
     Args:
         url (str): The url path to download file from.
@@ -112,7 +112,7 @@ def download_file(
             if os.path.isdir(file_path):
                 file_path = file_path + os.sep
 
-            (dir, filename) = os.path.split(file_path)
+            dir, filename = os.path.split(file_path)
 
             if not filename:
                 url_parts = urlparse.urlparse(url)

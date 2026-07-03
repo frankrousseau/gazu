@@ -24,6 +24,12 @@ Install Gazu in your application environment via pip:
 
     pip install gazu
 
+For the asynchronous API (``gazu.aio``), install the ``async`` extra:
+
+.. code:: bash
+
+    pip install gazu[async]
+
 The client requires a few extra configurations before being used. It
 needs to know where is located the API server and to log in:
 

@@ -346,6 +346,37 @@ class BaseFuncTestCase(ClientTestCase):
                     extra_files=["./tests/fixtures/v1.png"],
                 )
 
+    def test_upload_with_progress_callback_and_json_part(self):
+        # Regression: a non-file multipart part (a JSON tuple, as produced for
+        # batch comments) used to make the progress-callback path call
+        # os.fstat() on the tuple and raise AttributeError.
+        progress = []
+        with open("./tests/fixtures/v1.png", "rb") as test_file:
+            files = {
+                "file": test_file,
+                "comments": (
+                    None,
+                    json.dumps([{"x": 1}]),
+                    "application/json",
+                ),
+            }
+            with requests_mock.Mocker() as mock:
+                mock_route(
+                    mock,
+                    "POST",
+                    "data/new-file",
+                    text={"id": "person-01"},
+                )
+                result = raw.upload(
+                    "data/new-file",
+                    files=files,
+                    progress_callback=lambda read, total: progress.append(
+                        (read, total)
+                    ),
+                )
+            self.assertEqual(result["id"], "person-01")
+            self.assertTrue(len(progress) > 0)
+
     def test_check_status(self):
         class Request(object):
             def __init__(self, status_code):

@@ -45,17 +45,13 @@ def remove_oldest_entry(memo: dict, maxsize: int) -> Any:
         maxsize (int): Maximum number of entries for the cache.
 
     Returns:
-        Oldest entry for given cache.
+        The removed entry key, or None if nothing was removed.
     """
-    oldest_entry = None
     if maxsize > 0 and len(memo) > maxsize:
-        oldest_entry_key = list(memo.keys())[0]
-        for entry_key in memo.keys():
-            oldest_date = memo[oldest_entry_key]["date_accessed"]
-            if memo[entry_key]["date_accessed"] < oldest_date:
-                oldest_entry_key = entry_key
-        memo.pop(oldest_entry_key)
-    return oldest_entry
+        oldest_key = min(memo, key=lambda key: memo[key]["date_accessed"])
+        memo.pop(oldest_key)
+        return oldest_key
+    return None
 
 
 def get_cache_key(args: Any, kwargs: Any) -> str:
@@ -69,14 +65,13 @@ def get_cache_key(args: Any, kwargs: Any) -> str:
     kwargscopy = kwargs.copy()
     if "client" in kwargscopy:
         kwargscopy["client"] = kwargscopy["client"].host
-    if len(args) == 0 and len(kwargscopy) == 0:
+    if not args and not kwargscopy:
         return ""
-    elif len(args) == 0:
-        return json.dumps(kwargscopy)
-    elif len(kwargscopy.keys()) == 0:
+    if not kwargscopy:
         return json.dumps(args)
-    else:
-        return json.dumps([args, kwargscopy])
+    if not args:
+        return json.dumps(kwargscopy)
+    return json.dumps([args, kwargscopy])
 
 
 def insert_value(

@@ -5,7 +5,7 @@ Usage::
 
     import gazu.aio
 
-    async with gazu.aio.create_session(host, email, password) as client:
+    async with await gazu.aio.create_session(host, email, password) as client:
         data = await gazu.aio.get("data/projects", client=client)
 
 No default client is provided -- always pass an explicit ``client``.
@@ -24,7 +24,8 @@ from .__version__ import __version__
 from .client import (
     url_path_join,
     build_path_with_params,
-    get_message_from_response as _sync_get_message,
+    get_message_from_data,
+    MAX_AUTH_RETRIES,
 )
 from .encoder import CustomJSONEncoder
 from .exception import (
@@ -108,6 +109,8 @@ class AsyncKitsuClient:
         return headers
 
     async def refresh_access_token(self) -> dict[str, str]:
+        if not self.refresh_token:
+            raise NotAuthenticatedException("auth/refresh-token")
         url = get_full_url("auth/refresh-token", client=self)
         headers = {
             "User-Agent": "CGWire Gazu " + __version__,
@@ -117,7 +120,8 @@ class AsyncKitsuClient:
             await check_status(response, "auth/refresh-token")
             tokens = await response.json()
         self.access_token = tokens["access_token"]
-        self.refresh_token = None
+        # Keep the current refresh token unless the server returns a new one.
+        self.refresh_token = tokens.get("refresh_token", self.refresh_token)
         return tokens
 
     async def __aenter__(self) -> "AsyncKitsuClient":
@@ -139,6 +143,40 @@ def get_full_url(path: str, client: AsyncKitsuClient) -> str:
     return url_path_join(client.host, path)
 
 
+async def _handle_auth_expiry(
+    client: AsyncKitsuClient | None, path: str, can_refresh: bool
+) -> bool:
+    """
+    Handle an expired/invalid JWT: refresh the access token when possible,
+    otherwise fall back to the not-authenticated callback.
+
+    Async mirror of ``client._handle_auth_expiry``.
+
+    Returns:
+        bool: True when the request should be retried.
+
+    Raises:
+        NotAuthenticatedException: when the token can't be refreshed and no
+            callback authorizes a retry.
+    """
+    try:
+        if (
+            can_refresh
+            and client
+            and client.refresh_token
+            and client.use_refresh_token
+        ):
+            await client.refresh_access_token()
+            logger.debug("token refreshed for %s", path)
+            return True
+        raise NotAuthenticatedException(path)
+    except NotAuthenticatedException:
+        if client and client.callback_not_authenticated:
+            if client.callback_not_authenticated(client, path):
+                return True
+        raise
+
+
 async def check_status(
     response: aiohttp.ClientResponse,
     path: str,
@@ -150,14 +188,11 @@ async def check_status(
     elif status_code == 403:
         raise NotAllowedException(path)
     elif status_code == 400:
-        data = await response.json()
-        message = "No additional information"
-        if isinstance(data, dict):
-            for key in ["error", "message"]:
-                if data.get(key):
-                    message = data[key]
-                    break
-        raise ParameterException(path, message)
+        try:
+            data = await response.json()
+        except Exception:
+            data = {}
+        raise ParameterException(path, get_message_from_data(data))
     elif status_code == 405:
         raise MethodNotAllowedException(path)
     elif status_code == 413:
@@ -170,12 +205,6 @@ async def check_status(
             data = await response.json()
         except Exception:
             data = {}
-        message = "No additional information"
-        if isinstance(data, dict):
-            for key in ["error", "message"]:
-                if data.get(key):
-                    message = data[key]
-                    break
         jwt_expired = (
             isinstance(data, dict)
             and data.get("message") == "Signature has expired"
@@ -183,53 +212,31 @@ async def check_status(
         # flask-jwt-extended returns 422 with this message when the JWT
         # signature has expired -- this is an auth case, not a validation one.
         if jwt_expired:
-            try:
-                if (
-                    client
-                    and client.refresh_token
-                    and client.use_refresh_token
-                ):
-                    await client.refresh_access_token()
-                    return status_code, True
-                raise NotAuthenticatedException(path)
-            except NotAuthenticatedException:
-                if client and client.callback_not_authenticated:
-                    retry = client.callback_not_authenticated(client, path)
-                    if retry:
-                        return status_code, True
-                raise
-        raise ValidationException(path, message)
+            return status_code, await _handle_auth_expiry(
+                client, path, can_refresh=True
+            )
+        raise ValidationException(path, get_message_from_data(data))
     elif status_code == 401:
         try:
             data = await response.json()
-            if (
-                client
-                and client.refresh_token
-                and client.use_refresh_token
-                and data.get("message") == "Signature has expired"
-            ):
-                await client.refresh_access_token()
-                return status_code, True
-            else:
-                raise NotAuthenticatedException(path)
-        except NotAuthenticatedException:
-            if client and client.callback_not_authenticated:
-                retry = client.callback_not_authenticated(client, path)
-                if retry:
-                    return status_code, True
-            raise
+        except Exception:
+            data = {}
+        signature_expired = (
+            isinstance(data, dict)
+            and data.get("message") == "Signature has expired"
+        )
+        return status_code, await _handle_auth_expiry(
+            client, path, can_refresh=signature_expired
+        )
     elif status_code in [500, 502]:
         try:
             data = await response.json()
             stacktrace = data.get(
                 "stacktrace", "No stacktrace sent by the server"
             )
-            message = "No message sent by the server"
-            if isinstance(data, dict):
-                for key in ["error", "message"]:
-                    if data.get(key):
-                        message = data[key]
-                        break
+            message = get_message_from_data(
+                data, default="No message sent by the server"
+            )
             logger.error(
                 "A server error occurred!\n"
                 "Server stacktrace:\n%s\n"
@@ -252,8 +259,7 @@ async def get(
 ) -> Any:
     logger.debug("GET %s", get_full_url(path, client))
     path = build_path_with_params(path, params)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         async with client.session.get(
             get_full_url(path, client),
             headers=client.make_auth_header(),
@@ -264,12 +270,12 @@ async def get(
                     return await response.json()
                 else:
                     return await response.text()
+    raise NotAuthenticatedException(path)
 
 
 async def post(path: str, data: Any, client: AsyncKitsuClient = None) -> Any:
     logger.debug("POST %s", get_full_url(path, client))
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         async with client.session.post(
             get_full_url(path, client),
             json=data,
@@ -283,12 +289,12 @@ async def post(path: str, data: Any, client: AsyncKitsuClient = None) -> Any:
                     text = await response.text()
                     logger.error("Failed to decode JSON response: %s", text)
                     raise
+    raise NotAuthenticatedException(path)
 
 
 async def put(path: str, data: dict, client: AsyncKitsuClient = None) -> Any:
     logger.debug("PUT %s", get_full_url(path, client))
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         async with client.session.put(
             get_full_url(path, client),
             json=data,
@@ -297,6 +303,7 @@ async def put(path: str, data: dict, client: AsyncKitsuClient = None) -> Any:
             _, retry = await check_status(response, path, client=client)
             if not retry:
                 return await response.json()
+    raise NotAuthenticatedException(path)
 
 
 async def delete(
@@ -306,8 +313,7 @@ async def delete(
 ) -> str:
     logger.debug("DELETE %s", get_full_url(path, client))
     path = build_path_with_params(path, params)
-    retry = True
-    while retry:
+    for _ in range(MAX_AUTH_RETRIES):
         async with client.session.delete(
             get_full_url(path, client),
             headers=client.make_auth_header(),
@@ -315,6 +321,7 @@ async def delete(
             _, retry = await check_status(response, path, client=client)
             if not retry:
                 return await response.text()
+    raise NotAuthenticatedException(path)
 
 
 async def fetch_all(
@@ -416,31 +423,33 @@ async def upload(
         extra_files = []
     url = get_full_url(path, client)
 
-    form = aiohttp.FormData()
-    for key, value in data.items():
-        form.add_field(key, str(value))
-
     files_to_close = []
-    total_size = 0
+    file_fields = []
     if file_path is not None:
         f = open(file_path, "rb")
         files_to_close.append(f)
-        size = os.fstat(f.fileno()).st_size
-        total_size += size
-        form.add_field("file", f, filename=os.path.basename(file_path))
+        file_fields.append(("file", f, os.path.basename(file_path)))
     for i, extra_path in enumerate(extra_files, start=1):
         f = open(extra_path, "rb")
         files_to_close.append(f)
-        size = os.fstat(f.fileno()).st_size
-        total_size += size
-        form.add_field(f"file-{i}", f, filename=os.path.basename(extra_path))
+        file_fields.append((f"file-{i}", f, os.path.basename(extra_path)))
+
+    def build_form():
+        # aiohttp forbids re-sending a processed FormData: rebuild it (and
+        # rewind the file parts) for every attempt.
+        form = aiohttp.FormData()
+        for key, value in data.items():
+            form.add_field(key, str(value))
+        for name, f, filename in file_fields:
+            f.seek(0)
+            form.add_field(name, f, filename=filename)
+        return form
 
     try:
-        retry = True
-        while retry:
+        for _ in range(MAX_AUTH_RETRIES):
             async with client.session.post(
                 url,
-                data=form,
+                data=build_form(),
                 headers=client.make_auth_header(),
             ) as response:
                 _, retry = await check_status(response, path, client=client)
@@ -453,16 +462,14 @@ async def upload(
                             "Failed to decode JSON response: %s", text
                         )
                         raise
+                    break
+        else:
+            raise NotAuthenticatedException(path)
     finally:
         for f in files_to_close:
             f.close()
 
-    message = ""
-    if isinstance(result, dict):
-        for key in ["error", "message"]:
-            if result.get(key):
-                message = result[key]
-                break
+    message = get_message_from_data(result, default="")
     if message:
         raise UploadFailedException(message)
 

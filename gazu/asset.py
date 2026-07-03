@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from urllib.parse import urlencode
 
+import requests
+
 from .helpers import normalize_model_parameter
 
 from . import client as raw
@@ -13,8 +15,7 @@ from .cache import cache
 
 from .client import KitsuClient
 
-from .shot import get_episode
-
+from . import shot as gazu_shot
 
 default = raw.default_client
 
@@ -126,17 +127,10 @@ def get_asset_by_name(
     """
     project = normalize_model_parameter(project)
 
-    path = "assets/all"
-    if asset_type is None:
-        params = {"project_id": project["id"], "name": name}
-    else:
-        asset_type = normalize_model_parameter(asset_type)
-        params = {
-            "project_id": project["id"],
-            "name": name,
-            "entity_type_id": asset_type["id"],
-        }
-    return raw.fetch_first(path, params, client=client)
+    params = {"project_id": project["id"], "name": name}
+    if asset_type is not None:
+        params["entity_type_id"] = normalize_model_parameter(asset_type)["id"]
+    return raw.fetch_first("assets/all", params, client=client)
 
 
 @cache
@@ -386,7 +380,7 @@ def all_asset_types_for_shot(
 def get_asset_type(asset_type_id: str, client: KitsuClient = default) -> dict:
     """
     Args:
-        asset_type_id (str): ID of claimed asset type.
+        asset_type_id (str / dict): The asset type dict or its ID.
 
     Returns:
         dict: Asset Type matching given ID.
@@ -578,8 +572,8 @@ def new_asset_asset_instance(
     automatically generated (increment highest number).
 
     Args:
-        asset (str / dict): The asset dict or the shot ID.
-        asset_to_instantiate (str / dict): The asset instance dict or ID.
+        asset (str / dict): The asset dict or the asset ID.
+        asset_to_instantiate (str / dict): The asset dict or ID to instantiate.
         description (str): Additional information (optional)
 
     Returns:
@@ -692,7 +686,7 @@ def get_episode_from_asset(
     if asset["parent_id"] is None:
         return None
     else:
-        return get_episode(asset["parent_id"], client=client)
+        return gazu_shot.get_episode(asset["parent_id"], client=client)
 
 
 @cache

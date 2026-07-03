@@ -32,7 +32,7 @@ def get_edit_by_name(
         edit_name (str): Name of claimed edit.
 
     Returns:
-        dict: Edit corresponding to given name and sequence.
+        dict: Edit corresponding to given name and project.
     """
     project = normalize_model_parameter(project)
     return raw.fetch_first(

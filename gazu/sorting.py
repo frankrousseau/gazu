@@ -11,4 +11,4 @@ def sort_by_name(dicts: list[dict]) -> list[dict]:
     Returns:
         Sorted list.
     """
-    return sorted(dicts, key=lambda k: k.get("name", "").lower())
+    return sorted(dicts, key=lambda k: (k.get("name") or "").lower())

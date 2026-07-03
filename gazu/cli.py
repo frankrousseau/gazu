@@ -65,7 +65,8 @@ def clear_config():
 
 
 def print_table(rows, columns):
-    """Print a list of dicts as aligned columns.
+    """
+    Print a list of dicts as aligned columns.
 
     Args:
         rows: list of dicts
@@ -102,7 +103,9 @@ def _truncate(text, max_len):
 
 
 def output(ctx, data, columns):
-    """Output data as JSON or table depending on context flag."""
+    """
+    Output data as JSON or table depending on context flag.
+    """
     if ctx.obj.get("json"):
         click.echo(json.dumps(data, indent=2, default=str))
     else:
@@ -135,7 +138,9 @@ def resolve_project(name_or_id):
 
 
 def get_project_from_option(project_opt):
-    """Resolve project from CLI option or GAZU_PROJECT env var."""
+    """
+    Resolve project from CLI option or GAZU_PROJECT env var.
+    """
     name_or_id = project_opt or os.environ.get("GAZU_PROJECT")
     if not name_or_id:
         click.echo(
@@ -150,7 +155,9 @@ def get_project_from_option(project_opt):
 
 
 def setup_client():
-    """Load config and configure the gazu default client."""
+    """
+    Load config and configure the gazu default client.
+    """
     config = load_config()
     host = config.get("host")
     tokens = config.get("tokens")
@@ -165,7 +172,9 @@ def setup_client():
 
 
 def handle_errors(fn):
-    """Decorator to catch common gazu exceptions."""
+    """
+    Decorator to catch common gazu exceptions.
+    """
 
     def wrapper(*args, **kwargs):
         try:
@@ -199,7 +208,9 @@ def handle_errors(fn):
 @click.version_option(version=gazu.__version__, prog_name="gazu-cli")
 @click.pass_context
 def cli(ctx, use_json):
-    """Gazu CLI - Command-line client for the Kitsu API."""
+    """
+    Gazu CLI - Command-line client for the Kitsu API.
+    """
     ctx.ensure_object(dict)
     ctx.obj["json"] = use_json
 
@@ -215,7 +226,9 @@ def cli(ctx, use_json):
 )
 @handle_errors
 def login(host, email, password):
-    """Log in to a Kitsu instance and store credentials."""
+    """
+    Log in to a Kitsu instance and store credentials.
+    """
     if not host.endswith("/api"):
         host = host.rstrip("/") + "/api"
     gazu.set_host(host)
@@ -227,7 +240,9 @@ def login(host, email, password):
 @cli.command()
 @handle_errors
 def logout():
-    """Log out and clear stored credentials."""
+    """
+    Log out and clear stored credentials.
+    """
     try:
         setup_client()
         gazu.log_out()
@@ -241,7 +256,9 @@ def logout():
 @click.pass_context
 @handle_errors
 def status(ctx):
-    """Show current connection status."""
+    """
+    Show current connection status.
+    """
     setup_client()
     user = raw.get_current_user()
     version = raw.get_api_version()
@@ -275,7 +292,9 @@ def status(ctx):
 @click.pass_context
 @handle_errors
 def projects(ctx, show_all):
-    """List projects."""
+    """
+    List projects.
+    """
     setup_client()
     if show_all:
         data = gazu_project.all_projects()
@@ -298,7 +317,9 @@ def projects(ctx, show_all):
 @click.pass_context
 @handle_errors
 def project(ctx, name_or_id):
-    """Show details for a project."""
+    """
+    Show details for a project.
+    """
     setup_client()
     data = resolve_project(name_or_id)
     output(
@@ -323,7 +344,9 @@ def project(ctx, name_or_id):
 @click.pass_context
 @handle_errors
 def assets(ctx, project_opt, asset_type):
-    """List assets for a project."""
+    """
+    List assets for a project.
+    """
     setup_client()
     proj = get_project_from_option(project_opt)
     if asset_type:
@@ -352,7 +375,9 @@ def assets(ctx, project_opt, asset_type):
 @click.pass_context
 @handle_errors
 def asset(ctx, name_or_id, project_opt):
-    """Show details for an asset."""
+    """
+    Show details for an asset.
+    """
     setup_client()
     if _is_uuid(name_or_id):
         data = gazu_asset.get_asset(name_or_id)
@@ -385,7 +410,9 @@ def asset(ctx, name_or_id, project_opt):
 @click.pass_context
 @handle_errors
 def shots(ctx, project_opt, sequence, episode):
-    """List shots for a project."""
+    """
+    List shots for a project.
+    """
     setup_client()
     proj = get_project_from_option(project_opt)
     if sequence:
@@ -421,7 +448,9 @@ def shots(ctx, project_opt, sequence, episode):
 @click.pass_context
 @handle_errors
 def sequences(ctx, project_opt, episode):
-    """List sequences for a project."""
+    """
+    List sequences for a project.
+    """
     setup_client()
     proj = get_project_from_option(project_opt)
     if episode:
@@ -448,7 +477,9 @@ def sequences(ctx, project_opt, episode):
 @click.pass_context
 @handle_errors
 def episodes(ctx, project_opt):
-    """List episodes for a project."""
+    """
+    List episodes for a project.
+    """
     setup_client()
     proj = get_project_from_option(project_opt)
     data = gazu_shot.all_episodes_for_project(proj)
@@ -469,7 +500,9 @@ def episodes(ctx, project_opt):
 @click.pass_context
 @handle_errors
 def tasks(ctx, project_opt, task_type, task_status):
-    """List tasks for a project."""
+    """
+    List tasks for a project.
+    """
     setup_client()
     proj = get_project_from_option(project_opt)
     if task_type and task_status:
@@ -510,7 +543,9 @@ def tasks(ctx, project_opt, task_type, task_status):
 @click.pass_context
 @handle_errors
 def task(ctx, task_id):
-    """Show details for a task (by ID)."""
+    """
+    Show details for a task (by ID).
+    """
     setup_client()
     data = gazu_task.get_task(task_id)
     output(
@@ -540,7 +575,9 @@ def task(ctx, task_id):
 @click.option("--message", "-m", default="", help="Comment text.")
 @handle_errors
 def comment(task_id, status_short, message):
-    """Post a comment on a task (with status change)."""
+    """
+    Post a comment on a task (with status change).
+    """
     setup_client()
     ts = gazu_task.get_task_status_by_short_name(status_short)
     if ts is None:
@@ -557,7 +594,9 @@ def comment(task_id, status_short, message):
 @click.pass_context
 @handle_errors
 def persons(ctx):
-    """List all persons."""
+    """
+    List all persons.
+    """
     setup_client()
     data = gazu_person.all_persons()
     output(
@@ -581,7 +620,9 @@ def persons(ctx):
 @click.pass_context
 @handle_errors
 def my_tasks(ctx, done):
-    """List tasks assigned to current user."""
+    """
+    List tasks assigned to current user.
+    """
     setup_client()
     if done:
         data = gazu_user.all_done_tasks()
@@ -609,7 +650,9 @@ def my_tasks(ctx, done):
 @click.pass_context
 @handle_errors
 def search(ctx, query, project_opt):
-    """Search for entities across the Kitsu instance."""
+    """
+    Search for entities across the Kitsu instance.
+    """
     setup_client()
     proj = None
     if project_opt:
@@ -635,7 +678,9 @@ def search(ctx, query, project_opt):
 @click.pass_context
 @handle_errors
 def shot_casting(ctx, shot_id):
-    """Show casting (assets linked) for a shot."""
+    """
+    Show casting (assets linked) for a shot.
+    """
     setup_client()
     data = gazu_casting.get_shot_casting(shot_id)
     if ctx.obj["json"]:
@@ -658,7 +703,9 @@ def shot_casting(ctx, shot_id):
 @click.pass_context
 @handle_errors
 def asset_types(ctx, project_opt):
-    """List asset types."""
+    """
+    List asset types.
+    """
     setup_client()
     if project_opt:
         proj = resolve_project(project_opt)
@@ -673,7 +720,9 @@ def asset_types(ctx, project_opt):
 @click.pass_context
 @handle_errors
 def task_types(ctx, project_opt):
-    """List task types."""
+    """
+    List task types.
+    """
     setup_client()
     if project_opt:
         proj = resolve_project(project_opt)
@@ -692,7 +741,9 @@ def task_types(ctx, project_opt):
 @click.pass_context
 @handle_errors
 def task_statuses(ctx, project_opt):
-    """List task statuses."""
+    """
+    List task statuses.
+    """
     setup_client()
     if project_opt:
         proj = resolve_project(project_opt)

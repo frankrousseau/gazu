@@ -357,6 +357,7 @@ def add_metadata_descriptor(
         project (dict / ID): The project dict or id.
         name (str): The name of the metadata descriptor
         entity_type (str): asset, shot or scene.
+        data_type (str): The value type, defaults to "string".
         choices (list): A list of possible values, empty list for free values.
         for_client (bool) : Wheter it should be displayed in Kitsu or not.
         departments (list): A list of departments dict or id.
@@ -419,7 +420,7 @@ def get_metadata_descriptor_by_field_name(
         field_name (str): The name of the metadata field.
 
     Returns:
-        dict: The metadata descriptor matchind the ID.
+        dict: The metadata descriptor matching the given field name.
     """
     project = normalize_model_parameter(project)
     return raw.fetch_first(

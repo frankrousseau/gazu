@@ -45,7 +45,7 @@ def update_asset_casting(
     displayed into the asset).
 
     Args:
-        project (str / dict): The project dict or asset ID.
+        project (str / dict): The project dict or the project ID.
         asset (str / dict): The asset dict or the asset ID.
         casting (dict): The casting description.
 
@@ -124,7 +124,7 @@ def get_sequence_casting(
     return raw.get(path, client=client)
 
 
-def get_shot_casting(shot: dict, client: KitsuClient = default) -> dict:
+def get_shot_casting(shot: dict, client: KitsuClient = default) -> list[dict]:
     """
     Return casting for given shot.
 
@@ -140,7 +140,9 @@ def get_shot_casting(shot: dict, client: KitsuClient = default) -> dict:
     return raw.get(path, client=client)
 
 
-def get_asset_casting(asset: dict, client: KitsuClient = default) -> dict:
+def get_asset_casting(
+    asset: dict, client: KitsuClient = default
+) -> list[dict]:
     """
     Return casting for given asset.
     `[{"asset_id": "asset-1", "nb_occurences": 3}]}`
@@ -159,10 +161,12 @@ def get_asset_casting(asset: dict, client: KitsuClient = default) -> dict:
     return raw.get(path, client=client)
 
 
-def get_episode_casting(episode: dict, client: KitsuClient = default) -> dict:
+def get_episode_casting(
+    episode: dict, client: KitsuClient = default
+) -> list[dict]:
     """
     Return casting for given episode.
-    `[{"episode_id": "episode-1", "nb_occurences": 3}]}`
+    `[{"asset_id": "asset-1", "nb_occurences": 3}]}`
 
     Args:
         episode (dict): The episode dict
@@ -200,26 +204,25 @@ def all_entity_links_for_project(
     page: int | None = None,
     limit: int | None = None,
     client: KitsuClient = default,
-) -> dict:
+) -> list[dict] | dict:
     """
     Args:
         project (dict | str): The project dict or ID.
 
     Returns:
-        dict: A dictionary containing entity links for the project. If pagination
-            is used, contains "data" (list of entity link dicts) and pagination
-            metadata. Otherwise, returns a list of entity link dictionaries directly.
-            Each entity link dict contains "entity_in_id", "entity_out_id", and
-            other link-related fields.
+        By default (no ``page``), the full list of entity link dicts for the
+        project. When an explicit ``page`` is given, a single paginated dict
+        with "data" and pagination metadata is returned. Each entity link dict
+        contains "entity_in_id", "entity_out_id" and other link-related fields.
     """
     project = normalize_model_parameter(project)
-    path = f"data/projects/{project['id']}/entity-links"
+    path = f"projects/{project['id']}/entity-links"
     params = {}
     if page is not None:
         params["page"] = page
         if limit is not None:
             params["limit"] = limit
-    return raw.get(path, params=params, client=client)
+    return raw.fetch_all(path, params=params, client=client)
 
 
 def get_episodes_casting(

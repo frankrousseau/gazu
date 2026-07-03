@@ -24,6 +24,49 @@ from .cache import cache
 default = raw.default_client
 
 
+def _all_tasks_for_entity(
+    entity: str | dict,
+    collection: str,
+    suffix: str = "tasks",
+    relations: bool = False,
+    client: KitsuClient = default,
+) -> list[dict]:
+    """
+    Fetch and sort the tasks listed at ``<collection>/<entity id>/<suffix>``
+    for the given entity. Shared body of all the ``all_*tasks_for_*`` helpers.
+    """
+    entity = normalize_model_parameter(entity)
+    params = {"relations": True} if relations else {}
+    tasks = raw.fetch_all(
+        f"{collection}/{entity['id']}/{suffix}", params, client=client
+    )
+    return sort_by_name(tasks)
+
+
+def _open_comment_files(comments: list[dict]) -> tuple[dict, list]:
+    """
+    Open the attachment/preview files referenced by a batch of comments.
+
+    Returns the multipart ``files`` dict (including the JSON ``comments``
+    part) and the list of opened files -- the caller must close them.
+    """
+    files = {}
+    opened_files = []
+    try:
+        for x, comment in enumerate(comments):
+            for kind in ("attachment_files", "preview_files"):
+                for y, file_path in enumerate(comment.get(kind) or []):
+                    f = open(file_path, "rb")
+                    opened_files.append(f)
+                    files[f"{kind[:-1]}-{x}-{y}"] = f
+    except Exception:
+        for f in opened_files:
+            f.close()
+        raise
+    files["comments"] = (None, json.dumps(comments), "application/json")
+    return files, opened_files
+
+
 @cache
 def all_task_statuses(client: KitsuClient = default) -> list[dict]:
     """
@@ -85,12 +128,9 @@ def all_tasks_for_shot(
     Returns:
         list: Tasks linked to given shot.
     """
-    shot = normalize_model_parameter(shot)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    tasks = raw.fetch_all(f"shots/{shot['id']}/tasks", params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        shot, "shots", relations=relations, client=client
+    )
 
 
 @cache
@@ -104,14 +144,9 @@ def all_tasks_for_concept(
     Returns:
         list: Tasks linked to given concept.
     """
-    concept = normalize_model_parameter(concept)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    tasks = raw.fetch_all(
-        f"concepts/{concept['id']}/tasks", params, client=client
+    return _all_tasks_for_entity(
+        concept, "concepts", relations=relations, client=client
     )
-    return sort_by_name(tasks)
 
 
 @cache
@@ -125,12 +160,9 @@ def all_tasks_for_edit(
     Returns:
         list: Tasks linked to given edit.
     """
-    edit = normalize_model_parameter(edit)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    tasks = raw.fetch_all(f"edits/{edit['id']}/tasks", params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        edit, "edits", relations=relations, client=client
+    )
 
 
 @cache
@@ -143,16 +175,12 @@ def all_tasks_for_sequence(
     Args:
         sequence (str / dict): The sequence dict or the sequence ID.
 
-    Returns
+    Returns:
         list: Tasks linked to given sequence.
     """
-    sequence = normalize_model_parameter(sequence)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"sequences/{sequence['id']}/tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        sequence, "sequences", relations=relations, client=client
+    )
 
 
 @cache
@@ -166,13 +194,9 @@ def all_tasks_for_scene(
     Returns:
         list: Tasks linked to given scene.
     """
-    scene = normalize_model_parameter(scene)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"scenes/{scene['id']}/tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        scene, "scenes", relations=relations, client=client
+    )
 
 
 @cache
@@ -186,13 +210,9 @@ def all_tasks_for_asset(
     Returns:
         list: Tasks directly linked to given asset.
     """
-    asset = normalize_model_parameter(asset)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"assets/{asset['id']}/tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        asset, "assets", relations=relations, client=client
+    )
 
 
 @cache
@@ -202,13 +222,9 @@ def all_tasks_for_episode(
     """
     Retrieve all tasks directly linked to given episode.
     """
-    episode = normalize_model_parameter(episode)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"episodes/{episode['id']}/tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        episode, "episodes", relations=relations, client=client
+    )
 
 
 @cache
@@ -220,13 +236,9 @@ def all_shot_tasks_for_sequence(
     """
     Retrieve all tasks directly linked to all shots of given sequence.
     """
-    sequence = normalize_model_parameter(sequence)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"sequences/{sequence['id']}/shot-tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        sequence, "sequences", "shot-tasks", relations, client
+    )
 
 
 @cache
@@ -236,13 +248,9 @@ def all_shot_tasks_for_episode(
     """
     Retrieve all tasks directly linked to all shots of given episode.
     """
-    episode = normalize_model_parameter(episode)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"episodes/{episode['id']}/shot-tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        episode, "episodes", "shot-tasks", relations, client
+    )
 
 
 @cache
@@ -252,13 +260,9 @@ def all_assets_tasks_for_episode(
     """
     Retrieve all tasks directly linked to all assets of given episode.
     """
-    episode = normalize_model_parameter(episode)
-    params = {}
-    if relations:
-        params = {"relations": True}
-    path = f"episodes/{episode['id']}/asset-tasks"
-    tasks = raw.fetch_all(path, params, client=client)
-    return sort_by_name(tasks)
+    return _all_tasks_for_entity(
+        episode, "episodes", "asset-tasks", relations, client
+    )
 
 
 @cache
@@ -302,7 +306,7 @@ def all_tasks_for_task_type(
     Args:
         project (str / dict): The project dict or the project ID.
         task_type (str / dict): The task type dict or ID.
-        episode_id (str / dict): The episode dict or ID.
+        episode (str / dict): The episode dict or ID.
 
     Returns:
         list: Tasks for given project and task type.
@@ -327,7 +331,7 @@ def all_task_types_for_shot(
     Args:
         shot (str / dict): The shot dict or the shot ID.
 
-    Returns
+    Returns:
         list: Task types of task linked to given shot.
     """
     shot = normalize_model_parameter(shot)
@@ -344,7 +348,7 @@ def all_task_types_for_concept(
     Args:
         concept (str / dict): The concept dict or the concept ID.
 
-    Returns
+    Returns:
         list: Task types of task linked to given concept.
     """
     concept = normalize_model_parameter(concept)
@@ -609,7 +613,7 @@ def get_task_status_by_name(
 ) -> dict | None:
     """
     Args:
-        name (str / dict): The name of claimed task status.
+        name (str): The name of claimed task status.
 
     Returns:
         dict: Task status matching given name.
@@ -623,7 +627,7 @@ def get_task_status_by_short_name(
 ) -> dict | None:
     """
     Args:
-        short_name (str / dict): The short name of claimed task status.
+        task_status_short_name (str): The short name of claimed task status.
 
     Returns:
         dict: Task status matching given short name.
@@ -745,7 +749,9 @@ def new_task(
         assignees (list): List of people assigned to the task.
 
     Returns:
-        Created task.
+        The created task, or the existing one if a task with the same entity,
+        task type and name already exists (in which case the requested
+        task_status/assignees are not re-applied).
     """
     entity = normalize_model_parameter(entity)
     task_type = normalize_model_parameter(task_type)
@@ -1132,7 +1138,7 @@ def upload_preview_file(
     progress_callback=None,
 ) -> dict:
     """
-    Create a preview into given comment.
+    Upload the file content for a given preview file.
 
     Args:
         preview_file (str / dict): The preview_file dict or the preview_file ID.
@@ -1320,26 +1326,8 @@ def batch_comments(
     if task is not None:
         task = normalize_model_parameter(task)
 
-    files = {}
-    opened_files = []
+    files, opened_files = _open_comment_files(comments)
     try:
-        for x, comment in enumerate(comments):
-            if comment.get("attachment_files"):
-                for y, file_path in enumerate(comment["attachment_files"]):
-                    f = open(file_path, "rb")
-                    opened_files.append(f)
-                    files[f"attachment_file-{x}-{y}"] = f
-            if comment.get("preview_files"):
-                for y, file_path in enumerate(comment["preview_files"]):
-                    f = open(file_path, "rb")
-                    opened_files.append(f)
-                    files[f"preview_file-{x}-{y}"] = f
-
-        files["comments"] = (
-            None,
-            json.dumps(comments),
-            "application/json",
-        )
         return raw.upload(
             f"actions/tasks/{task['id'] + '/' if task else ''}batch-comment",
             file_path=None,
@@ -1376,26 +1364,8 @@ def create_multiple_comments(
         comments = []
     project = normalize_model_parameter(project)
 
-    files = {}
-    opened_files = []
+    files, opened_files = _open_comment_files(comments)
     try:
-        for x, comment in enumerate(comments):
-            if comment.get("attachment_files"):
-                for y, file_path in enumerate(comment["attachment_files"]):
-                    f = open(file_path, "rb")
-                    opened_files.append(f)
-                    files[f"attachment_file-{x}-{y}"] = f
-            if comment.get("preview_files"):
-                for y, file_path in enumerate(comment["preview_files"]):
-                    f = open(file_path, "rb")
-                    opened_files.append(f)
-                    files[f"preview_file-{x}-{y}"] = f
-
-        files["comments"] = (
-            None,
-            json.dumps(comments),
-            "application/json",
-        )
         return raw.upload(
             f"actions/projects/{project['id']}/tasks/comment-many",
             file_path=None,

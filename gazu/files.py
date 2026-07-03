@@ -13,6 +13,45 @@ from .helpers import normalize_model_parameter
 default = raw.default_client
 
 
+def _format_path(folder: str, name: str, sep: str) -> str:
+    """
+    Join a folder and file name, replacing spaces with underscores.
+    """
+    return f"{folder.replace(' ', '_')}{sep}{name.replace(' ', '_')}"
+
+
+def _output_file_filters(
+    output_type: str | dict | None = None,
+    task_type: str | dict | None = None,
+    name: str | None = None,
+    representation: str | None = None,
+    file_status: str | dict | None = None,
+    temporal_entity: str | dict | None = None,
+) -> dict:
+    """
+    Build the query params shared by all the ``*output_files_for_*`` helpers.
+    """
+    output_type = normalize_model_parameter(output_type)
+    task_type = normalize_model_parameter(task_type)
+    file_status = normalize_model_parameter(file_status)
+    temporal_entity = normalize_model_parameter(temporal_entity)
+
+    params = {}
+    if temporal_entity:
+        params["temporal_entity_id"] = temporal_entity["id"]
+    if output_type:
+        params["output_type_id"] = output_type["id"]
+    if task_type:
+        params["task_type_id"] = task_type["id"]
+    if representation:
+        params["representation"] = representation
+    if name:
+        params["name"] = name
+    if file_status:
+        params["file_status_id"] = file_status["id"]
+    return params
+
+
 @cache
 def all_output_types(client: KitsuClient = default) -> list[dict]:
     """
@@ -271,23 +310,10 @@ def all_output_files_for_entity(
             task_type, name and representation
     """
     entity = normalize_model_parameter(entity)
-    output_type = normalize_model_parameter(output_type)
-    task_type = normalize_model_parameter(task_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"entities/{entity['id']}/output-files"
-
-    params = {}
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type, task_type, name, representation, file_status
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -317,26 +343,15 @@ def all_output_files_for_asset_instance(
         output type, task_type, name and representation
     """
     asset_instance = normalize_model_parameter(asset_instance)
-    temporal_entity = normalize_model_parameter(temporal_entity)
-    task_type = normalize_model_parameter(task_type)
-    output_type = normalize_model_parameter(output_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"asset-instances/{asset_instance['id']}/output-files"
-
-    params = {}
-    if temporal_entity:
-        params["temporal_entity_id"] = temporal_entity["id"]
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type,
+        task_type,
+        name,
+        representation,
+        file_status,
+        temporal_entity,
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -364,23 +379,10 @@ def all_output_files_for_project(
             task_type, name and representation
     """
     project = normalize_model_parameter(project)
-    output_type = normalize_model_parameter(output_type)
-    task_type = normalize_model_parameter(task_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"projects/{project['id']}/output-files"
-
-    params = {}
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type, task_type, name, representation, file_status
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -397,7 +399,7 @@ def all_softwares(client: KitsuClient = default) -> list[dict]:
 def get_software(software_id: str, client: KitsuClient = default) -> dict:
     """
     Args:
-        software_id (str): ID of claimed output type.
+        software_id (str): ID of claimed software.
 
     Returns:
         dict: Software object corresponding to given ID.
@@ -411,7 +413,7 @@ def get_software_by_name(
 ) -> dict | None:
     """
     Args:
-        software_name (str): Name of claimed output type.
+        software_name (str): Name of claimed software.
 
     Returns:
         dict: Software object corresponding to given name.
@@ -500,7 +502,7 @@ def build_working_file_path(
     result = raw.post(
         f"data/tasks/{task['id']}/working-file-path", data, client=client
     )
-    return f"{result['path'].replace(' ', '_')}{sep}{result['name'].replace(' ', '_')}"
+    return _format_path(result["path"], result["name"], sep)
 
 
 @cache
@@ -552,7 +554,7 @@ def build_entity_output_file_path(
     }
     path = f"data/entities/{entity['id']}/output-file-path"
     result = raw.post(path, data, client=client)
-    return f"{result['folder_path'].replace(' ', '_')}{sep}{result['file_name'].replace(' ', '_')}"
+    return _format_path(result["folder_path"], result["file_name"], sep)
 
 
 @cache
@@ -608,7 +610,7 @@ def build_asset_instance_output_file_path(
     }
     path = f"data/asset-instances/{asset_instance['id']}/entities/{temporal_entity['id']}/output-file-path"
     result = raw.post(path, data, client=client)
-    return f"{result['folder_path'].replace(' ', '_')}{sep}{result['file_name'].replace(' ', '_')}"
+    return _format_path(result["folder_path"], result["file_name"], sep)
 
 
 def new_working_file(
@@ -817,8 +819,8 @@ def get_next_entity_output_revision(
     """
     Args:
         entity (str / dict): The entity dict or ID.
-        output_type (str / dict): The entity dict or ID.
-        task_type (str / dict): The entity dict or ID.
+        output_type (str / dict): The output type dict or ID.
+        task_type (str / dict): The task type dict or ID.
         name (str): Get version for output file with the given name.
 
     Returns:
@@ -849,8 +851,8 @@ def get_next_asset_instance_output_revision(
     Args:
         asset_instance (str / dict): The asset instance dict or ID.
         temporal_entity (str / dict): The temporal entity dict or ID.
-        output_type (str / dict): The entity dict or ID.
-        task_type (str / dict): The entity dict or ID.
+        output_type (str / dict): The output type dict or ID.
+        task_type (str / dict): The task type dict or ID.
 
     Returns:
         int: Next revision of ouput files available for given asset insance
@@ -879,13 +881,13 @@ def get_last_entity_output_revision(
     """
     Args:
         entity (str / dict): The entity dict or ID.
-        output_type (str / dict): The entity dict or ID.
-        task_type (str / dict): The entity dict or ID.
+        output_type (str / dict): The output type dict or ID.
+        task_type (str / dict): The task type dict or ID.
         name (str): The output name
 
     Returns:
-        int: Last revision of ouput files for given entity, output type and task
-        type.
+        int: Last revision of output files for given entity, output type and
+        task type. 0 when no output file exists yet.
     """
     entity = normalize_model_parameter(entity)
     output_type = normalize_model_parameter(output_type)
@@ -893,9 +895,8 @@ def get_last_entity_output_revision(
     revision = get_next_entity_output_revision(
         entity, output_type, task_type, name, client=client
     )
-    if revision != 1:
-        revision -= 1
-    return revision
+    # next_revision is 1 when no output file exists yet, so last is 0.
+    return revision - 1
 
 
 def get_last_asset_instance_output_revision(
@@ -908,6 +909,10 @@ def get_last_asset_instance_output_revision(
 ) -> int:
     """
     Generate last output revision for given asset instance.
+
+    Returns:
+        int: Last revision of output files for given asset instance.
+        0 when no output file exists yet.
     """
     asset_instance = normalize_model_parameter(asset_instance)
     temporal_entity = normalize_model_parameter(temporal_entity)
@@ -921,9 +926,8 @@ def get_last_asset_instance_output_revision(
         name=name,
         client=client,
     )
-    if revision != 1:
-        revision -= 1
-    return revision
+    # next_revision is 1 when no output file exists yet, so last is 0.
+    return revision - 1
 
 
 @cache
@@ -951,23 +955,10 @@ def get_last_output_files_for_entity(
             task_type, name and representation
     """
     entity = normalize_model_parameter(entity)
-    output_type = normalize_model_parameter(output_type)
-    task_type = normalize_model_parameter(task_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"entities/{entity['id']}/output-files/last-revisions"
-
-    params = {}
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type, task_type, name, representation, file_status
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -998,23 +989,10 @@ def get_last_output_files_for_asset_instance(
     """
     asset_instance = normalize_model_parameter(asset_instance)
     temporal_entity = normalize_model_parameter(temporal_entity)
-    output_type = normalize_model_parameter(output_type)
-    task_type = normalize_model_parameter(task_type)
-    file_status = normalize_model_parameter(file_status)
     path = f"asset-instances/{asset_instance['id']}/entities/{temporal_entity['id']}/output-files/last-revisions"
-
-    params = {}
-    if output_type:
-        params["output_type_id"] = output_type["id"]
-    if task_type:
-        params["task_type_id"] = task_type["id"]
-    if representation:
-        params["representation"] = representation
-    if name:
-        params["name"] = name
-    if file_status:
-        params["file_status_id"] = file_status["id"]
-
+    params = _output_file_filters(
+        output_type, task_type, name, representation, file_status
+    )
     return raw.fetch_all(path, params, client=client)
 
 
@@ -1350,6 +1328,43 @@ def download_preview_file_cover(
     )
 
 
+def _download_avatar(
+    kind: str,
+    model: str | dict,
+    file_path: str,
+    client: KitsuClient = default,
+    progress_callback=None,
+) -> requests.Response:
+    """
+    Download the avatar of given model kind (persons/projects/...).
+    """
+    model = normalize_model_parameter(model)
+    return raw.download(
+        f"pictures/thumbnails/{kind}/{model['id']}.png",
+        file_path,
+        client=client,
+        progress_callback=progress_callback,
+    )
+
+
+def _upload_avatar(
+    kind: str,
+    model: str | dict,
+    file_path: str,
+    client: KitsuClient = default,
+    progress_callback=None,
+) -> dict[Literal["thumbnail_path"], str]:
+    """
+    Upload given file as the avatar of given model kind.
+    """
+    path = (
+        f"/pictures/thumbnails/{kind}/{normalize_model_parameter(model)['id']}"
+    )
+    return raw.upload(
+        path, file_path, client=client, progress_callback=progress_callback
+    )
+
+
 def download_person_avatar(
     person: str | dict,
     file_path: str,
@@ -1363,12 +1378,8 @@ def download_person_avatar(
         person (str / dict): The person dict or ID.
         file_path (str): Location on hard drive where to save the file.
     """
-    person = normalize_model_parameter(person)
-    return raw.download(
-        f"pictures/thumbnails/persons/{person['id']}.png",
-        file_path,
-        client=client,
-        progress_callback=progress_callback,
+    return _download_avatar(
+        "persons", person, file_path, client, progress_callback
     )
 
 
@@ -1389,9 +1400,8 @@ def upload_person_avatar(
         dict: Dictionary with a key of 'thumbnail_path' and a value of the
             path to the static image file, relative to the host url.
     """
-    path = f"/pictures/thumbnails/persons/{normalize_model_parameter(person)['id']}"
-    return raw.upload(
-        path, file_path, client=client, progress_callback=progress_callback
+    return _upload_avatar(
+        "persons", person, file_path, client, progress_callback
     )
 
 
@@ -1408,12 +1418,8 @@ def download_project_avatar(
         project (str / dict): The project dict or ID.
         file_path (str): Location on hard drive where to save the file.
     """
-    project = normalize_model_parameter(project)
-    return raw.download(
-        f"pictures/thumbnails/projects/{project['id']}.png",
-        file_path,
-        client=client,
-        progress_callback=progress_callback,
+    return _download_avatar(
+        "projects", project, file_path, client, progress_callback
     )
 
 
@@ -1434,9 +1440,8 @@ def upload_project_avatar(
         dict: Dictionary with a key of 'thumbnail_path' and a value of the
             path to the static image file, relative to the host url.
     """
-    path = f"/pictures/thumbnails/projects/{normalize_model_parameter(project)['id']}"
-    return raw.upload(
-        path, file_path, client=client, progress_callback=progress_callback
+    return _upload_avatar(
+        "projects", project, file_path, client, progress_callback
     )
 
 
@@ -1453,12 +1458,8 @@ def download_organisation_avatar(
         organisation (str / dict): The organisation dict or ID.
         file_path (str): Location on hard drive where to save the file.
     """
-    organisation = normalize_model_parameter(organisation)
-    return raw.download(
-        f"pictures/thumbnails/organisations/{organisation['id']}.png",
-        file_path,
-        client=client,
-        progress_callback=progress_callback,
+    return _download_avatar(
+        "organisations", organisation, file_path, client, progress_callback
     )
 
 
@@ -1479,9 +1480,8 @@ def upload_organisation_avatar(
         dict: Dictionary with a key of 'thumbnail_path' and a value of the
             path to the static image file, relative to the host url.
     """
-    path = f"/pictures/thumbnails/organisations/{normalize_model_parameter(organisation)['id']}"
-    return raw.upload(
-        path, file_path, client=client, progress_callback=progress_callback
+    return _upload_avatar(
+        "organisations", organisation, file_path, client, progress_callback
     )
 
 
