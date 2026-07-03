@@ -16,7 +16,11 @@ from . import shot as shot_module
 from . import task as task_module
 
 from .client import KitsuClient
-from .helpers import normalize_model_parameter, validate_date_format
+from .helpers import (
+    normalize_model_parameter,
+    sanitize_filename,
+    validate_date_format,
+)
 
 logger = logging.getLogger("gazu.sync")
 
@@ -700,7 +704,10 @@ def push_task_comment(
         attachment_file = files_module.get_attachment_file(
             attachment_id, client=client_source
         )
-        file_path = os.path.join(tmp_path, attachment_file["name"])
+        # Sanitize the server-provided name so it can't escape tmp_path.
+        file_path = os.path.join(
+            tmp_path, sanitize_filename(attachment_file["name"])
+        )
         files_module.download_attachment_file(
             attachment_file, file_path, client=client_source
         )
@@ -719,11 +726,14 @@ def push_task_comment(
             preview_file["original_name"] is not None
             and preview_file["extension"] is not None
         ):
+            # Sanitize the server-provided name so it can't escape tmp_path.
             file_path = os.path.join(
                 tmp_path,
-                preview_file["original_name"]
-                + "."
-                + preview_file["extension"],
+                sanitize_filename(
+                    preview_file["original_name"]
+                    + "."
+                    + preview_file["extension"]
+                ),
             )
             files_module.download_preview_file(
                 preview_file, file_path, client=client_source
