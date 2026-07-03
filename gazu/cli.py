@@ -86,9 +86,12 @@ def print_table(rows, columns):
     headers = [h for h, _ in columns]
     values = []
     for row in rows:
-        values.append(
-            [_truncate(str(row.get(k, "") or ""), 60) for _, k in columns]
-        )
+        row_vals = []
+        for _, k in columns:
+            # Only blank out None; keep falsy values like 0 or False.
+            value = row.get(k)
+            row_vals.append(_truncate(str("" if value is None else value), 60))
+        values.append(row_vals)
 
     widths = [len(h) for h in headers]
     for row_vals in values:

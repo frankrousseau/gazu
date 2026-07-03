@@ -1,3 +1,5 @@
+import contextlib
+import io
 import os
 import stat
 import tempfile
@@ -5,6 +7,18 @@ import unittest
 from unittest import mock
 
 import gazu.cli
+
+
+class CliPrintTableTestCase(unittest.TestCase):
+    def test_print_table_keeps_falsy_values(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            gazu.cli.print_table(
+                [{"name": "Shot 1", "frames": 0}],
+                [("NAME", "name"), ("FRAMES", "frames")],
+            )
+        # 0 must render as "0", not a blank cell.
+        self.assertIn("0", buf.getvalue().splitlines()[-1])
 
 
 class CliConfigTestCase(unittest.TestCase):
