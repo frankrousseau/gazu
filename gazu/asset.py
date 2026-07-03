@@ -28,7 +28,7 @@ def all_assets_for_open_projects(client: KitsuClient = default) -> list[dict]:
     """
     all_assets = []
     for project in gazu_project.all_open_projects(client=client):
-        all_assets.extend(all_assets_for_project(project, client))
+        all_assets.extend(all_assets_for_project(project, client=client))
     return sort_by_name(all_assets)
 
 
