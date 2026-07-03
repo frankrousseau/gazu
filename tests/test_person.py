@@ -231,9 +231,13 @@ class PersonTestCase(unittest.TestCase):
             person = {
                 "id": fakeid("person-1"),
                 "phone": "+33 6 07 07 07 07",
-                "departments": [fakeid("department-1")],
+                "departments": [{"id": fakeid("department-1")}],
             }
             self.assertEqual(gazu.person.update_person(person), result)
+            # The caller's dict must not be normalized in place.
+            self.assertEqual(
+                person["departments"], [{"id": fakeid("department-1")}]
+            )
 
     def test_update_bot(self):
         result = {

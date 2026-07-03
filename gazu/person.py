@@ -362,9 +362,13 @@ def update_person(person: dict, client: KitsuClient = default) -> dict:
     """
 
     if isinstance(person, dict) and "departments" in person:
-        person["departments"] = normalize_list_of_models_for_links(
-            person["departments"]
-        )
+        # Copy before normalizing so the caller's dict is left untouched.
+        person = {
+            **person,
+            "departments": normalize_list_of_models_for_links(
+                person["departments"]
+            ),
+        }
 
     person = normalize_model_parameter(person)
     return raw.put(
