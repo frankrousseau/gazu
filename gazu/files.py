@@ -14,7 +14,9 @@ default = raw.default_client
 
 
 def _format_path(folder: str, name: str, sep: str) -> str:
-    """Join a folder and file name, replacing spaces with underscores."""
+    """
+    Join a folder and file name, replacing spaces with underscores.
+    """
     return f"{folder.replace(' ', '_')}{sep}{name.replace(' ', '_')}"
 
 
@@ -1329,7 +1331,9 @@ def _download_avatar(
     client: KitsuClient = default,
     progress_callback=None,
 ) -> requests.Response:
-    """Download the avatar of given model kind (persons/projects/...)."""
+    """
+    Download the avatar of given model kind (persons/projects/...).
+    """
     model = normalize_model_parameter(model)
     return raw.download(
         f"pictures/thumbnails/{kind}/{model['id']}.png",
@@ -1346,7 +1350,9 @@ def _upload_avatar(
     client: KitsuClient = default,
     progress_callback=None,
 ) -> dict[Literal["thumbnail_path"], str]:
-    """Upload given file as the avatar of given model kind."""
+    """
+    Upload given file as the avatar of given model kind.
+    """
     path = (
         f"/pictures/thumbnails/{kind}/{normalize_model_parameter(model)['id']}"
     )

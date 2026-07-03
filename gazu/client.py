@@ -811,7 +811,9 @@ def update(
 
 
 class _ProgressFileWrapper:
-    """Wraps a file object to track read progress via a callback."""
+    """
+    Wraps a file object to track read progress via a callback.
+    """
 
     def __init__(self, file_obj, callback, offset, total):
         self._file = file_obj

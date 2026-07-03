@@ -45,7 +45,9 @@ logger = logging.getLogger("gazu.aio")
 def _message_from_data(
     data: Any, default: str = "No additional information"
 ) -> str:
-    """Extract Zou's error/message string from a parsed JSON body."""
+    """
+    Extract Zou's error/message string from a parsed JSON body.
+    """
     if isinstance(data, dict):
         for key in ("error", "message"):
             value = data.get(key)
