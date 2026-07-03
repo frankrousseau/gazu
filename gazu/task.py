@@ -1619,7 +1619,9 @@ def update_task_data(
     if data is None:
         data = {}
     task = normalize_model_parameter(task)
-    current_task = get_task(task["id"], client=client)
+    # Read the base uncached: a cached get_task could be stale and silently
+    # revert metadata written since it was cached.
+    current_task = raw.get(f"data/tasks/{task['id']}/full", client=client)
 
     updated_task = {
         "id": current_task["id"],

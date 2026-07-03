@@ -190,7 +190,9 @@ def update_edit_data(
     if data is None:
         data = {}
     edit = normalize_model_parameter(edit)
-    current_edit = get_edit(edit["id"], client=client)
+    # Read the base uncached to avoid reverting metadata written since a
+    # cached get_edit was stored.
+    current_edit = raw.fetch_one("edits", edit["id"], client=client)
     current_data = current_edit["data"] or {}
     updated_edit = {
         "id": current_edit["id"],

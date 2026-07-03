@@ -225,7 +225,9 @@ def update_project_data(
     if data is None:
         data = {}
     project = normalize_model_parameter(project)
-    project = get_project(project["id"], client=client)
+    # Read the base uncached to avoid reverting metadata written since a
+    # cached get_project was stored.
+    project = raw.fetch_one("projects", project["id"], client=client)
     if "data" not in project or project["data"] is None:
         project["data"] = {}
     project["data"] = {**project["data"], **data}

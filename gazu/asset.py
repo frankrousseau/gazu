@@ -305,7 +305,9 @@ def update_asset_data(
     if data is None:
         data = {}
     asset = normalize_model_parameter(asset)
-    current_asset = get_asset(asset["id"], client=client)
+    # Read the base uncached to avoid reverting metadata written since a
+    # cached get_asset was stored.
+    current_asset = raw.fetch_one("assets", asset["id"], client=client)
     updated_asset = {
         "id": current_asset["id"],
         "data": {**(current_asset["data"] or {}), **data},

@@ -510,7 +510,9 @@ def update_shot_data(
     if data is None:
         data = {}
     shot = normalize_model_parameter(shot)
-    current_shot = get_shot(shot["id"], client=client)
+    # Read the base uncached to avoid reverting metadata written since a
+    # cached get_shot was stored.
+    current_shot = raw.fetch_one("shots", shot["id"], client=client)
     current_data = current_shot["data"] or {}
     updated_shot = {
         "id": current_shot["id"],
