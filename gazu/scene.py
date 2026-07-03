@@ -41,7 +41,7 @@ def all_scenes(
             f"projects/{project['id']}/scenes", client=client
         )
     else:
-        scenes = raw.fetch_all("scenes", client=client)
+        scenes = raw.fetch_all("scenes/all", client=client)
     return sort_by_name(scenes)
 
 

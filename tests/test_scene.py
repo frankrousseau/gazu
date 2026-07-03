@@ -60,7 +60,7 @@ class SceneTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                "data/scenes",
+                "data/scenes/all",
                 text=[{"name": "Scene 01", "project_id": "project-01"}],
             )
             project = {"id": "project-01"}
