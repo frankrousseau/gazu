@@ -378,34 +378,20 @@ class TaskTestCase(unittest.TestCase):
             )
             gazu.playlist.delete_playlist(fakeid("playlist-1"))
 
-    def test_get_entity_previews(self):
-        with requests_mock.mock() as mock:
-            mock.get(
-                gazu.client.get_full_url(
-                    f"data/playlists/{fakeid('playlist-1')}/entity-previews"
-                ),
-                text=json.dumps(
-                    [
-                        {"id": fakeid("preview-1"), "name": "preview-1"},
-                        {"id": fakeid("preview-2"), "name": "preview-2"},
-                    ]
-                ),
-            )
-            previews = gazu.playlist.get_entity_previews(fakeid("playlist-1"))
-            self.assertEqual(len(previews), 2)
-            self.assertEqual(previews[0]["name"], "preview-1")
-
     def test_get_build_job(self):
         with requests_mock.mock() as mock:
             mock.get(
                 gazu.client.get_full_url(
-                    f"data/playlists/build-jobs/{fakeid('build-job-1')}"
+                    f"data/playlists/{fakeid('playlist-1')}"
+                    f"/jobs/{fakeid('build-job-1')}"
                 ),
                 text=json.dumps(
                     {"id": fakeid("build-job-1"), "status": "done"}
                 ),
             )
-            build_job = gazu.playlist.get_build_job(fakeid("build-job-1"))
+            build_job = gazu.playlist.get_build_job(
+                fakeid("playlist-1"), fakeid("build-job-1")
+            )
             self.assertEqual(build_job["id"], fakeid("build-job-1"))
             self.assertEqual(build_job["status"], "done")
 
@@ -413,11 +399,14 @@ class TaskTestCase(unittest.TestCase):
         with requests_mock.mock() as mock:
             mock.delete(
                 gazu.client.get_full_url(
-                    f"data/playlists/build-jobs/{fakeid('build-job-1')}"
+                    f"data/playlists/{fakeid('playlist-1')}"
+                    f"/jobs/{fakeid('build-job-1')}"
                 ),
                 status_code=204,
             )
-            gazu.playlist.remove_build_job(fakeid("build-job-1"))
+            gazu.playlist.remove_build_job(
+                fakeid("playlist-1"), fakeid("build-job-1")
+            )
 
     def test_all_build_jobs_for_project(self):
         with requests_mock.mock() as mock:
@@ -440,9 +429,9 @@ class TaskTestCase(unittest.TestCase):
 
     def test_build_playlist_movie(self):
         with requests_mock.mock() as mock:
-            mock.post(
+            mock.get(
                 gazu.client.get_full_url(
-                    f"data/playlists/{fakeid('playlist-1')}/build-movie"
+                    f"data/playlists/{fakeid('playlist-1')}/build/mp4"
                 ),
                 text=json.dumps(
                     {"id": fakeid("build-job-1"), "status": "running"}
@@ -461,7 +450,7 @@ class TaskTestCase(unittest.TestCase):
         with requests_mock.mock() as mock:
             mock.get(
                 gazu.client.get_full_url(
-                    f"data/playlists/{fakeid('playlist-1')}/build-jobs/{fakeid('build-job-1')}/download"
+                    f"data/playlists/{fakeid('playlist-1')}/jobs/{fakeid('build-job-1')}/build/mp4"
                 ),
                 content=b"mock movie content",
             )
