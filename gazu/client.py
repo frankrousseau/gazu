@@ -602,6 +602,7 @@ def _handle_auth_expiry(
             and client.use_refresh_token
         ):
             client.refresh_access_token()
+            logger.debug("token refreshed for %s", path)
             return True
         raise NotAuthenticatedException(path)
     except NotAuthenticatedException:
