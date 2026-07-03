@@ -1126,6 +1126,18 @@ class TaskTestCase(unittest.TestCase):
                     {"id": fakeid("preview-1")},
                 )
 
+    def test_add_preview_requires_path_or_url(self):
+        # Without a path or URL, it must fail before creating a preview
+        # record server-side (otherwise an empty preview is orphaned).
+        with self.assertRaises(ValueError):
+            gazu.task.add_preview(fakeid("task-1"), fakeid("comment-1"))
+        with self.assertRaises(ValueError):
+            gazu.task.add_extra_preview(
+                fakeid("task-1"),
+                fakeid("comment-1"),
+                fakeid("preview-1"),
+            )
+
     def test_add_attachment_files_to_comment(self):
         with open("./tests/fixtures/v1.png", "rb") as test_file:
             with requests_mock.Mocker() as mock:

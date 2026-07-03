@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import string
 
 import requests
@@ -1183,20 +1184,27 @@ def add_preview(
     Returns:
         dict: Created preview file model.
     """
-    if preview_file_url is not None:
-        preview_file_path = download_file(
-            preview_file_url,
+    if preview_file_path is None and preview_file_url is None:
+        raise ValueError(
+            "add_preview requires either preview_file_path or "
+            "preview_file_url."
         )
-
-    preview_file = create_preview(
-        task, comment, revision=revision, client=client
-    )
-    return upload_preview_file(
-        preview_file,
-        preview_file_path,
-        normalize_movie=normalize_movie,
-        client=client,
-    )
+    downloaded = None
+    if preview_file_url is not None:
+        preview_file_path = downloaded = download_file(preview_file_url)
+    try:
+        preview_file = create_preview(
+            task, comment, revision=revision, client=client
+        )
+        return upload_preview_file(
+            preview_file,
+            preview_file_path,
+            normalize_movie=normalize_movie,
+            client=client,
+        )
+    finally:
+        if downloaded is not None and os.path.exists(downloaded):
+            os.remove(downloaded)
 
 
 def add_extra_preview(
@@ -1227,20 +1235,27 @@ def add_extra_preview(
     Returns:
         dict: Created preview file model.
     """
-    if preview_file_url is not None:
-        preview_file_path = download_file(
-            preview_file_url,
+    if preview_file_path is None and preview_file_url is None:
+        raise ValueError(
+            "add_extra_preview requires either preview_file_path or "
+            "preview_file_url."
         )
-
-    new_preview_file = create_extra_preview(
-        task, comment, preview_file, client=client
-    )
-    return upload_preview_file(
-        new_preview_file,
-        preview_file_path,
-        normalize_movie=normalize_movie,
-        client=client,
-    )
+    downloaded = None
+    if preview_file_url is not None:
+        preview_file_path = downloaded = download_file(preview_file_url)
+    try:
+        new_preview_file = create_extra_preview(
+            task, comment, preview_file, client=client
+        )
+        return upload_preview_file(
+            new_preview_file,
+            preview_file_path,
+            normalize_movie=normalize_movie,
+            client=client,
+        )
+    finally:
+        if downloaded is not None and os.path.exists(downloaded):
+            os.remove(downloaded)
 
 
 def publish_preview(
