@@ -584,10 +584,11 @@ def get_task_by_path(
 
 
 @cache
-def get_default_task_status(client: KitsuClient = default) -> dict:
+def get_default_task_status(client: KitsuClient = default) -> dict | None:
     """
     Returns:
-        dict: The unique task status flagged with `is_default`.
+        dict: The unique task status flagged with `is_default`, or None if
+        none is flagged.
     """
     return raw.fetch_first(
         "task-status", params={"is_default": True}, client=client
