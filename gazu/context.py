@@ -26,17 +26,12 @@ def all_open_projects(
 
 def all_assets_for_project(
     project: str | dict,
-    user_context: bool = False,
     client: KitsuClient = default,
 ) -> list[dict]:
     """
-    Return the project's assets (only the current user's when user_context is
-    True).
+    Return the project's assets.
     """
-    if user_context:
-        return gazu_user.all_assets_for_project(project, client=client)
-    else:
-        return gazu_asset.all_assets_for_project(project, client=client)
+    return gazu_asset.all_assets_for_project(project, client=client)
 
 
 def all_asset_types_for_project(
@@ -151,17 +146,12 @@ def all_sequences_for_project(
 
 def all_scenes_for_project(
     project: str | dict,
-    user_context: bool = False,
     client: KitsuClient = default,
 ) -> list[dict]:
     """
-    Return the project's scenes (only the current user's when user_context is
-    True).
+    Return the project's scenes.
     """
-    if user_context:
-        return gazu_user.all_scenes_for_project(project, client=client)
-    else:
-        return gazu_scene.all_scenes(project, client=client)
+    return gazu_scene.all_scenes(project, client=client)
 
 
 def all_shots_for_sequence(
@@ -196,17 +186,12 @@ def all_scenes_for_sequence(
 
 def all_sequences_for_episode(
     episode: str | dict,
-    user_context: bool = False,
     client: KitsuClient = default,
 ) -> list[dict]:
     """
-    Return the episode's sequences (only the current user's when user_context
-    is True).
+    Return the episode's sequences.
     """
-    if user_context:
-        return gazu_user.all_sequences_for_episode(episode, client=client)
-    else:
-        return gazu_shot.all_sequences_for_episode(episode, client=client)
+    return gazu_shot.all_sequences_for_episode(episode, client=client)
 
 
 def all_episodes_for_project(

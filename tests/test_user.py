@@ -323,17 +323,6 @@ class ProjectTestCase(unittest.TestCase):
             context = gazu.user.get_context()
             self.assertEqual(context["user"]["id"], fakeid("user-1"))
 
-    def test_all_project_assets(self):
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "GET",
-                f"data/user/projects/{fakeid('project-1')}/assets",
-                text=[{"id": fakeid("asset-1")}, {"id": fakeid("asset-2")}],
-            )
-            assets = gazu.user.all_project_assets(fakeid("project-1"))
-            self.assertEqual(len(assets), 2)
-
     def test_all_tasks_requiring_feedback(self):
         with requests_mock.mock() as mock:
             mock_route(

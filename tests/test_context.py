@@ -21,7 +21,7 @@ class CastingTestCase(unittest.TestCase):
             )
             project = {"id": "project-01"}
             self.assertEqual(
-                gazu.context.all_assets_for_project(project, False),
+                gazu.context.all_assets_for_project(project),
                 gazu.asset.all_assets_for_project(project),
             )
 
@@ -267,53 +267,8 @@ class CastingTestCase(unittest.TestCase):
             )
             episode = {"id": "episode-01"}
             self.assertEqual(
-                gazu.context.all_sequences_for_episode(episode, False),
+                gazu.context.all_sequences_for_episode(episode),
                 gazu.shot.all_sequences_for_episode(episode),
-            )
-
-    def test_all_assets_for_project_user_context(self):
-        # Regression: user_context=True used to call a missing user function.
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "GET",
-                "data/user/projects/project-01/assets",
-                text=[{"name": "Asset 01", "id": "asset-01"}],
-            )
-            project = {"id": "project-01"}
-            self.assertEqual(
-                gazu.context.all_assets_for_project(project, True),
-                gazu.user.all_assets_for_project(project),
-            )
-
-    def test_all_scenes_for_project_user_context(self):
-        # Regression: user_context=True used to call a missing user function.
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "GET",
-                "data/user/projects/project-01/scenes",
-                text=[{"name": "Scene 01", "id": "scene-01"}],
-            )
-            project = {"id": "project-01"}
-            self.assertEqual(
-                gazu.context.all_scenes_for_project(project, True),
-                gazu.user.all_scenes_for_project(project),
-            )
-
-    def test_all_sequences_for_episode_user_context(self):
-        # Regression: user_context=True used to call a missing user function.
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "GET",
-                "data/user/episodes/episode-01/sequences",
-                text=[{"name": "sequence1", "id": "sequence-01"}],
-            )
-            episode = {"id": "episode-01"}
-            self.assertEqual(
-                gazu.context.all_sequences_for_episode(episode, True),
-                gazu.user.all_sequences_for_episode(episode),
             )
 
     def test_all_task_types_for_shot(self):

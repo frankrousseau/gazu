@@ -49,13 +49,7 @@ _ALLOWED_EXACT = {
 
 # Known-broken routes still shipped by gazu, pending a fix or a decision.
 # This list must only shrink. See .audit/checklist-2026-07-03.md (BUG-2/3).
-_ALLOWED_BROKEN = {
-    # user.py all_*_for_* (user_context): no user-scoped route in Zou.
-    # Removing them changes context.py behavior -> needs a decision.
-    "/data/user/projects/<project_id>/assets",
-    "/data/user/projects/<project_id>/scenes",
-    "/data/user/episodes/<project_id>/sequences",
-}
+_ALLOWED_BROKEN = set()
 _BROKEN_PATTERNS = [_to_regex(r) for r in _ALLOWED_BROKEN]
 
 
