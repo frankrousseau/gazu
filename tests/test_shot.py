@@ -190,6 +190,26 @@ class ShotTestCase(unittest.TestCase):
             )
             self.assertEqual(sequence["name"], "Sequence 01")
 
+    def test_get_sequence_from_shot_by_id(self):
+        with requests_mock.mock() as mock:
+            mock_route(
+                mock,
+                "GET",
+                f"data/shots/{fakeid('shot-1')}",
+                text={
+                    "id": fakeid("shot-1"),
+                    "parent_id": fakeid("sequence-1"),
+                },
+            )
+            mock_route(
+                mock,
+                "GET",
+                f"data/sequences/{fakeid('sequence-1')}",
+                text={"id": fakeid("sequence-1"), "name": "Sequence 01"},
+            )
+            sequence = gazu.shot.get_sequence_from_shot(fakeid("shot-1"))
+            self.assertEqual(sequence["name"], "Sequence 01")
+
     def test_get_shot(self):
         with requests_mock.mock() as mock:
             mock_route(

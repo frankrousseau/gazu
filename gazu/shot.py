@@ -227,6 +227,9 @@ def get_sequence_from_shot(shot: dict, client: KitsuClient = default) -> dict:
         dict: Sequence which is parent of given shot.
     """
     shot = normalize_model_parameter(shot)
+    if "parent_id" not in shot:
+        # Only an ID was given: fetch the full shot to read its parent.
+        shot = get_shot(shot["id"], client=client)
     return get_sequence(shot["parent_id"], client=client)
 
 
