@@ -588,7 +588,7 @@ class CastingTestCase(unittest.TestCase):
     def test_disable_asset_instance(self):
         with requests_mock.mock() as mock:
             mock.put(
-                f"{gazu.client.host}/asset-instances/{fakeid('asset-instance-1')}",
+                f"{gazu.client.host}/data/asset-instances/{fakeid('asset-instance-1')}",
                 text=json.dumps(
                     {"id": fakeid("asset-instance-1"), "active": False}
                 ),
@@ -601,7 +601,7 @@ class CastingTestCase(unittest.TestCase):
     def test_enable_asset_instance(self):
         with requests_mock.mock() as mock:
             mock.put(
-                f"{gazu.client.host}/asset-instances/{fakeid('asset-instance-1')}",
+                f"{gazu.client.host}/data/asset-instances/{fakeid('asset-instance-1')}",
                 text=json.dumps(
                     {"id": fakeid("asset-instance-1"), "active": True}
                 ),

@@ -494,7 +494,7 @@ def enable_asset_instance(
     """
     asset_instance = normalize_model_parameter(asset_instance)
     data = {"active": True}
-    path = f"asset-instances/{asset_instance['id']}"
+    path = f"data/asset-instances/{asset_instance['id']}"
     return raw.put(path, data, client=client)
 
 
@@ -509,7 +509,7 @@ def disable_asset_instance(
     """
     asset_instance = normalize_model_parameter(asset_instance)
     data = {"active": False}
-    path = f"asset-instances/{asset_instance['id']}"
+    path = f"data/asset-instances/{asset_instance['id']}"
     return raw.put(path, data, client=client)
 
 
