@@ -1516,7 +1516,7 @@ def get_running_preview_files(client: KitsuClient = default) -> list[dict]:
     Returns:
         list: Preview files that are currently running/processing.
     """
-    return raw.fetch_all("preview-files/running", client=client)
+    return raw.fetch_all("playlists/preview-files/running", client=client)
 
 
 def get_preview_movie_url(
@@ -1540,10 +1540,12 @@ def get_preview_movie_url(
         "preview-files", preview_file["id"], client=client
     )
     if lowdef:
-        path_prefix = "movies/lowdef"
-    else:
-        path_prefix = "movies/originals"
-    return f"{path_prefix}/preview-files/{preview_file['id']}.{preview_file['extension']}"
+        # The low-definition movie is always an .mp4.
+        return f"movies/low/preview-files/{preview_file['id']}.mp4"
+    return (
+        f"movies/originals/preview-files/{preview_file['id']}"
+        f".{preview_file['extension']}"
+    )
 
 
 def download_preview_movie(
@@ -1666,9 +1668,13 @@ def extract_frame_from_preview(
         requests.Response: Response object containing the extracted frame.
     """
     preview_file = normalize_model_parameter(preview_file)
-    url = f"pictures/preview-files/{preview_file['id']}/extract-frame/{frame_number}"
+    url = f"actions/preview-files/{preview_file['id']}/extract-frame"
     return raw.download(
-        url, file_path, client=client, progress_callback=progress_callback
+        url,
+        file_path,
+        params={"frame_number": frame_number},
+        client=client,
+        progress_callback=progress_callback,
     )
 
 
@@ -1689,7 +1695,7 @@ def update_preview_position(
         dict: Updated preview file.
     """
     preview_file = normalize_model_parameter(preview_file)
-    path = f"data/preview-files/{preview_file['id']}/position"
+    path = f"actions/preview-files/{preview_file['id']}/update-position"
     return raw.put(path, {"position": position}, client=client)
 
 
@@ -1752,7 +1758,7 @@ def extract_tile_from_preview(
         requests.Response: Response object containing the extracted tile.
     """
     preview_file = normalize_model_parameter(preview_file)
-    url = f"pictures/preview-files/{preview_file['id']}/extract-tile"
+    url = f"actions/preview-files/{preview_file['id']}/extract-tile"
     return raw.download(
         url, file_path, client=client, progress_callback=progress_callback
     )

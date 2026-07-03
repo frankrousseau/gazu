@@ -1280,7 +1280,12 @@ class FilesTestCase(unittest.TestCase):
                 {"id": fakeid("preview-1"), "status": "running"},
                 {"id": fakeid("preview-2"), "status": "running"},
             ]
-            mock_route(mock, "GET", "data/preview-files/running", text=result)
+            mock_route(
+                mock,
+                "GET",
+                "data/playlists/preview-files/running",
+                text=result,
+            )
             self.assertEqual(gazu.files.get_running_preview_files(), result)
 
     def test_get_preview_movie_url(self):
@@ -1305,7 +1310,7 @@ class FilesTestCase(unittest.TestCase):
                 fakeid("preview-1"), lowdef=True
             )
             expected_lowdef = (
-                f"movies/lowdef/preview-files/{fakeid('preview-1')}.mp4"
+                f"movies/low/preview-files/{fakeid('preview-1')}.mp4"
             )
             self.assertEqual(url_lowdef, expected_lowdef)
 
@@ -1345,7 +1350,7 @@ class FilesTestCase(unittest.TestCase):
                 text=preview_data,
             )
             url = gazu.files.get_preview_lowdef_movie_url(fakeid("preview-1"))
-            expected = f"movies/lowdef/preview-files/{fakeid('preview-1')}.mp4"
+            expected = f"movies/low/preview-files/{fakeid('preview-1')}.mp4"
             self.assertEqual(url, expected)
 
     def test_download_preview_lowdef_movie(self):
@@ -1361,7 +1366,7 @@ class FilesTestCase(unittest.TestCase):
                     f"data/preview-files/{fakeid('preview-1')}",
                     text=preview_data,
                 )
-                path = f"movies/lowdef/preview-files/{fakeid('preview-1')}.mp4"
+                path = f"movies/low/preview-files/{fakeid('preview-1')}.mp4"
                 mock.get(gazu.client.get_full_url(path), body=movie_file)
                 gazu.files.download_preview_lowdef_movie(
                     fakeid("preview-1"), "./test.mp4"
@@ -1392,7 +1397,7 @@ class FilesTestCase(unittest.TestCase):
     def test_extract_frame_from_preview(self):
         with open("./tests/fixtures/v1.png", "rb") as frame_file:
             with requests_mock.mock() as mock:
-                path = f"pictures/preview-files/{fakeid('preview-1')}/extract-frame/100"
+                path = f"actions/preview-files/{fakeid('preview-1')}/extract-frame"
                 mock.get(gazu.client.get_full_url(path), body=frame_file)
                 gazu.files.extract_frame_from_preview(
                     fakeid("preview-1"), 100, "./test.png"
@@ -1404,7 +1409,7 @@ class FilesTestCase(unittest.TestCase):
         # Regression: file_path=None used to crash in open(None, "wb").
         with open("./tests/fixtures/v1.png", "rb") as frame_file:
             with requests_mock.mock() as mock:
-                path = f"pictures/preview-files/{fakeid('preview-1')}/extract-frame/100"
+                path = f"actions/preview-files/{fakeid('preview-1')}/extract-frame"
                 mock.get(gazu.client.get_full_url(path), body=frame_file)
                 response = gazu.files.extract_frame_from_preview(
                     fakeid("preview-1"), 100
@@ -1413,7 +1418,9 @@ class FilesTestCase(unittest.TestCase):
 
     def test_update_preview_position(self):
         with requests_mock.mock() as mock:
-            path = f"data/preview-files/{fakeid('preview-1')}/position"
+            path = (
+                f"actions/preview-files/{fakeid('preview-1')}/update-position"
+            )
             result = {
                 "id": fakeid("preview-1"),
                 "position": 5,
@@ -1449,7 +1456,9 @@ class FilesTestCase(unittest.TestCase):
     def test_extract_tile_from_preview(self):
         with open("./tests/fixtures/v1.png", "rb") as tile_file:
             with requests_mock.mock() as mock:
-                path = f"pictures/preview-files/{fakeid('preview-1')}/extract-tile"
+                path = (
+                    f"actions/preview-files/{fakeid('preview-1')}/extract-tile"
+                )
                 mock.get(gazu.client.get_full_url(path), body=tile_file)
                 gazu.files.extract_tile_from_preview(
                     fakeid("preview-1"), "./test.png"
