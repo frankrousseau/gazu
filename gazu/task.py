@@ -1511,6 +1511,9 @@ def clear_assignations(
     """
     if not isinstance(tasks, list):
         tasks = [tasks]
+    if not tasks:
+        # Nothing to clear: avoid a pointless 400 from the server.
+        return []
     data = {}
     for task in tasks:
         task = normalize_model_parameter(task)

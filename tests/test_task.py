@@ -1126,6 +1126,12 @@ class TaskTestCase(unittest.TestCase):
                     {"id": fakeid("preview-1")},
                 )
 
+    def test_clear_assignations_empty_is_noop(self):
+        # An empty list must not hit the API (which would 400): the mock has
+        # no routes, so any request would raise NoMockAddress.
+        with requests_mock.mock():
+            self.assertEqual(gazu.task.clear_assignations([]), [])
+
     def test_add_preview_requires_path_or_url(self):
         # Without a path or URL, it must fail before creating a preview
         # record server-side (otherwise an empty preview is orphaned).
