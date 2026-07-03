@@ -1,6 +1,10 @@
 import asyncio
 import unittest
 
+import pytest
+
+pytest.importorskip("aiohttp")  # async extra is optional; skip if absent
+
 import gazu.aio
 from gazu.exception import (
     RouteNotFoundException,
