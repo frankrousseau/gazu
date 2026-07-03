@@ -1453,7 +1453,6 @@ def get_last_comment_for_task(
     return raw.fetch_first(f"tasks/{task['id']}/comments", client=client)
 
 
-@cache
 def assign_task(
     task: str | dict, person: str | dict, client: KitsuClient = default
 ) -> dict:
