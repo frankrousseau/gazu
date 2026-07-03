@@ -1001,7 +1001,14 @@ def add_comment(
     else:
         attachments = list(attachments)
         attachment = attachments.pop()
+        # Multipart form parts are plain strings. Zou parses "for_client"
+        # with bool(str), so "False" would wrongly become True -- drop the
+        # field when False (the server defaults it to False). List fields
+        # must be JSON-encoded so Zou's json.loads() can decode them.
+        if not for_client:
+            del data["for_client"]
         data["checklist"] = json.dumps(checklist)
+        data["links"] = json.dumps(links)
         return raw.upload(
             f"actions/tasks/{task['id']}/comment",
             attachment,

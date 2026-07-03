@@ -470,6 +470,37 @@ class TaskTestCase(unittest.TestCase):
             self.assertEqual(comment, result)
             self.assertEqual(mock.last_request.json()["for_client"], False)
 
+    def test_add_comment_with_attachment_omits_for_client_when_false(self):
+        # Multipart parts are strings; Zou parses for_client with bool(str),
+        # so "False" would wrongly become True. The field must be absent.
+        import os
+        import tempfile
+
+        fd, path = tempfile.mkstemp(suffix=".txt")
+        os.write(fd, b"attachment")
+        os.close(fd)
+        try:
+            with requests_mock.mock() as mock:
+                mock_route(
+                    mock,
+                    "POST",
+                    f"actions/tasks/{fakeid('task-1')}/comment",
+                    text={"id": "comment-1"},
+                )
+                gazu.task.add_comment(
+                    fakeid("task-1"),
+                    fakeid("task-status-01"),
+                    "wip note",
+                    attachments=[path],
+                    links=["https://ref.example.com"],
+                )
+                body = mock.last_request.text
+                self.assertNotIn('name="for_client"', body)
+                # links must be JSON-encoded, not sent as a bare URL string.
+                self.assertIn('["https://ref.example.com"]', body)
+        finally:
+            os.remove(path)
+
     def test_add_comment_for_client(self):
         with requests_mock.mock() as mock:
             result = {
