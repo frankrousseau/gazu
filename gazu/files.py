@@ -880,7 +880,7 @@ def get_last_entity_output_revision(
     entity: str | dict,
     output_type: str | dict,
     task_type: str | dict,
-    name: str = "master",
+    name: str = "main",
     client: KitsuClient = default,
 ) -> int:
     """
