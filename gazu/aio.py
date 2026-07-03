@@ -495,18 +495,26 @@ async def download(
         )
     """
     path = build_path_with_params(path, params)
-    async with client.session.get(
-        get_full_url(path, client),
-        headers=client.make_auth_header(),
-    ) as response:
-        total = int(response.headers.get("content-length", 0))
-        bytes_read = 0
-        with open(file_path, "wb") as target_file:
-            async for chunk in response.content.iter_chunked(8192):
-                target_file.write(chunk)
-                if progress_callback is not None:
-                    bytes_read += len(chunk)
-                    progress_callback(bytes_read, total)
+    url = get_full_url(path, client)
+    for _ in range(MAX_AUTH_RETRIES):
+        async with client.session.get(
+            url, headers=client.make_auth_header()
+        ) as response:
+            # Check the status before streaming, so an error body is never
+            # written to the file and an expired token triggers a refresh.
+            _, retry = await check_status(response, path, client=client)
+            if retry:
+                continue
+            total = int(response.headers.get("content-length", 0))
+            bytes_read = 0
+            with open(file_path, "wb") as target_file:
+                async for chunk in response.content.iter_chunked(8192):
+                    target_file.write(chunk)
+                    if progress_callback is not None:
+                        bytes_read += len(chunk)
+                        progress_callback(bytes_read, total)
+            return
+    raise NotAuthenticatedException(path)
 
 
 async def log_in(
