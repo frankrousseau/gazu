@@ -988,11 +988,22 @@ def download(
 
     """
     path = build_path_with_params(path, params)
-    with client.session.get(
-        get_full_url(path, client),
-        headers=make_auth_header(client=client),
-        stream=True,
-    ) as response:
+    url = get_full_url(path, client)
+    for _ in range(MAX_AUTH_RETRIES):
+        response = client.session.get(
+            url, headers=make_auth_header(client=client), stream=True
+        )
+        # Check the status *before* streaming to the file, so an error body
+        # (404/403/500 JSON) is never written into the target, and an expired
+        # token triggers a refresh + retry like the other verbs.
+        _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+        response.close()
+    else:
+        raise NotAuthenticatedException(path)
+
+    with response:
         if file_path is None:
             # No destination: materialize the body and return the response.
             response.content

@@ -614,3 +614,19 @@ class BaseFuncTestCase(ClientTestCase):
                 text="test",
             )
             self.assertEqual(raw.get_file_data_from_url("test_url"), b"test")
+
+    def test_download_raises_on_error_without_writing_file(self):
+        import os
+        import tempfile
+
+        target = os.path.join(tempfile.mkdtemp(), "out.bin")
+        with requests_mock.mock() as mock:
+            mock.get(
+                raw.get_full_url("movies/originals/preview-files/x.mp4"),
+                text=json.dumps({"error": "not found"}),
+                status_code=404,
+            )
+            with self.assertRaises(RouteNotFoundException):
+                raw.download("movies/originals/preview-files/x.mp4", target)
+            # The error body must not have been written to the target.
+            self.assertFalse(os.path.exists(target))
