@@ -403,7 +403,7 @@ class PersonTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/persons/{person_id}/time-spents/by-date?date=2025-01-15",
+                f"data/persons/{person_id}/time-spents/2025-01-15",
                 text=[{"id": fakeid("ts-1")}, {"id": fakeid("ts-2")}],
             )
             time_spents = gazu.person.get_time_spents_by_date(
@@ -617,7 +617,7 @@ class PersonTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/persons/{person_id}/two-factor-authentication",
+                f"actions/persons/{person_id}/disable-two-factor-authentication",
                 status_code=204,
             )
             gazu.person.disable_two_factor_authentication(person_id)
@@ -628,7 +628,7 @@ class PersonTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/persons/{person_id}/avatar",
+                f"actions/persons/{person_id}/clear-avatar",
                 status_code=204,
             )
             gazu.person.clear_person_avatar(person_id)

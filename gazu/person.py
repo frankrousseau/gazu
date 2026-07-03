@@ -563,8 +563,7 @@ def get_time_spents_by_date(
     """
     person = normalize_model_parameter(person)
     return raw.get(
-        f"data/persons/{person['id']}/time-spents/by-date",
-        params={"date": date},
+        f"data/persons/{person['id']}/time-spents/{date}",
         client=client,
     )
 
@@ -826,7 +825,7 @@ def disable_two_factor_authentication(
     """
     person = normalize_model_parameter(person)
     return raw.delete(
-        f"data/persons/{person['id']}/two-factor-authentication",
+        f"actions/persons/{person['id']}/disable-two-factor-authentication",
         client=client,
     )
 
@@ -844,4 +843,6 @@ def clear_person_avatar(
         Response: Request response object.
     """
     person = normalize_model_parameter(person)
-    return raw.delete(f"data/persons/{person['id']}/avatar", client=client)
+    return raw.delete(
+        f"actions/persons/{person['id']}/clear-avatar", client=client
+    )
