@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.13] - 2026-07-03
 
 ### Fixed
 
@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Synchronisation is resilient to ids not present in the mapping tables
   (unmapped tasks/comments are skipped and logged instead of aborting).
 - `playlist.add_entity_to_playlist` no longer mutates the playlist argument.
+- Upload auth-retries rewind file parts instead of sending empty files.
+- Comment helpers close already-opened attachments when one fails to open.
+- Synchronisation warns on unmapped assigners/authors instead of sending
+  null ids.
+- `GAZU_DEBUG` no longer configures the host application's root logger.
 
 ### Changed
 
