@@ -379,12 +379,32 @@ def push_assets(
     assets = asset_module.all_assets_for_project(
         project_source, client=client_source
     )
+    mapped_assets = []
     for asset in assets:
-        asset["entity_type_id"] = asset_types_map[asset["entity_type_id"]]
+        entity_type_id = asset["entity_type_id"]
+        if entity_type_id not in asset_types_map:
+            logger.warning(
+                "Skipping asset %s: asset type %s is not mapped to the "
+                "target.",
+                asset.get("id"),
+                entity_type_id,
+            )
+            continue
+        asset["entity_type_id"] = asset_types_map[entity_type_id]
         if asset["ready_for"] is not None:
-            asset["ready_for"] = task_types_map[asset["ready_for"]]
+            if asset["ready_for"] not in task_types_map:
+                logger.warning(
+                    "Asset %s: ready_for task type %s is not mapped to the "
+                    "target, importing without it.",
+                    asset.get("id"),
+                    asset["ready_for"],
+                )
+                asset["ready_for"] = None
+            else:
+                asset["ready_for"] = task_types_map[asset["ready_for"]]
         asset["project_id"] = project_target["id"]
-    return import_entities(assets, client=client_target)
+        mapped_assets.append(asset)
+    return import_entities(mapped_assets, client=client_target)
 
 
 def push_episodes(
@@ -743,6 +763,11 @@ def push_task_comment(
                     "file_path": file_path,
                     "annotations": preview_file["annotations"],
                 }
+            )
+        else:
+            logger.warning(
+                "Skipping preview %s: missing original_name or extension.",
+                preview_file.get("id"),
             )
 
     if comment["task_status_id"] not in task_status_map:
