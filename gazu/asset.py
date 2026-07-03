@@ -283,7 +283,8 @@ def update_asset(asset: dict, client: KitsuClient = default) -> dict:
         asset (dict): Asset to save.
     """
     if "episode_id" in asset:
-        asset["source_id"] = asset["episode_id"]
+        # Copy before rewriting the key so the caller's dict is left intact.
+        asset = {**asset, "source_id": asset["episode_id"]}
     return raw.put(f"data/entities/{asset['id']}", asset, client=client)
 
 

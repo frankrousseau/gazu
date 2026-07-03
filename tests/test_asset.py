@@ -551,6 +551,8 @@ class CastingTestCase(unittest.TestCase):
                 "episode_id": fakeid("episode_1"),
             }
             self.assertEqual(gazu.asset.update_asset(asset), result)
+            # The caller's dict must not be mutated.
+            self.assertNotIn("source_id", asset)
 
     def test_update_asset_data(self):
         with requests_mock.mock() as mock:
