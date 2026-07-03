@@ -1695,7 +1695,7 @@ def all_open_tasks(client: KitsuClient = default) -> list[dict]:
     Returns:
         list: Open tasks.
     """
-    return raw.fetch_all("tasks/open", client=client)
+    return raw.fetch_all("tasks/open-tasks", client=client)
 
 
 @cache
@@ -1706,7 +1706,7 @@ def get_open_tasks_stats(client: KitsuClient = default) -> dict:
     Returns:
         dict: Open tasks statistics.
     """
-    return raw.get("data/tasks/open/stats", client=client)
+    return raw.get("data/tasks/open-tasks/stats", client=client)
 
 
 @cache
@@ -1760,7 +1760,7 @@ def all_tasks_for_person_and_type(
     person = normalize_model_parameter(person)
     task_type = normalize_model_parameter(task_type)
     return raw.fetch_all(
-        f"persons/{person['id']}/task-types/{task_type['id']}/tasks",
+        f"persons/{person['id']}/related-tasks/{task_type['id']}",
         client=client,
     )
 
@@ -1840,22 +1840,14 @@ def all_subscriptions_for_project(
 
 
 @cache
-def get_persons_tasks_dates(
-    project: str | dict, client: KitsuClient = default
-) -> dict:
+def get_persons_tasks_dates(client: KitsuClient = default) -> dict:
     """
-    Get tasks dates for persons in a project.
-
-    Args:
-        project (str / dict): The project dict or id.
+    Get, for each person, the first and last task start/due dates.
 
     Returns:
         dict: Tasks dates for persons.
     """
-    project = normalize_model_parameter(project)
-    return raw.get(
-        f"data/projects/{project['id']}/persons/tasks/dates", client=client
-    )
+    return raw.get("data/persons/task-dates", client=client)
 
 
 def remove_tasks_for_type(
@@ -1871,26 +1863,33 @@ def remove_tasks_for_type(
     project = normalize_model_parameter(project)
     task_type = normalize_model_parameter(task_type)
     return raw.delete(
-        f"data/projects/{project['id']}/task-types/{task_type['id']}/tasks",
+        f"actions/projects/{project['id']}"
+        f"/task-types/{task_type['id']}/delete-tasks",
         client=client,
     )
 
 
 def remove_tasks_batch(
-    tasks: list[str | dict], client: KitsuClient = default
+    project: str | dict,
+    tasks: list[str | dict],
+    client: KitsuClient = default,
 ) -> requests.Response:
     """
-    Delete multiple tasks in batch.
+    Delete multiple tasks of a project in batch.
 
     Args:
+        project (str / dict): The project the tasks belong to.
         tasks (list): List of task dicts or IDs to delete.
 
     Returns:
         Response: Request response object.
     """
+    project = normalize_model_parameter(project)
     task_ids = [normalize_model_parameter(task)["id"] for task in tasks]
     return raw.post(
-        "data/tasks/delete-batch", {"task_ids": task_ids}, client=client
+        f"actions/projects/{project['id']}/delete-tasks",
+        task_ids,
+        client=client,
     )
 
 
@@ -1910,8 +1909,8 @@ def assign_tasks_to_person(
     person = normalize_model_parameter(person)
     task_ids = [normalize_model_parameter(task)["id"] for task in tasks]
     return raw.put(
-        "data/tasks/assign",
-        {"person_id": person["id"], "task_ids": task_ids},
+        f"actions/persons/{person['id']}/assign",
+        {"task_ids": task_ids},
         client=client,
     )
 
@@ -1932,8 +1931,7 @@ def get_task_time_spent_for_date(
     """
     task = normalize_model_parameter(task)
     return raw.get(
-        f"data/tasks/{task['id']}/time-spent/for-date",
-        params={"date": date},
+        f"actions/tasks/{task['id']}/time-spents/{date}",
         client=client,
     )
 
@@ -1979,6 +1977,7 @@ def add_preview_to_comment(
 
 
 def remove_preview_from_comment(
+    task: str | dict,
     comment: str | dict,
     preview_file: str | dict,
     client: KitsuClient = default,
@@ -1987,13 +1986,16 @@ def remove_preview_from_comment(
     Remove a preview from a comment.
 
     Args:
+        task (str / dict): The task the comment belongs to.
         comment (str / dict): The comment dict or id.
         preview_file (str / dict): The preview file dict or id.
     """
+    task = normalize_model_parameter(task)
     comment = normalize_model_parameter(comment)
     preview_file = normalize_model_parameter(preview_file)
     return raw.delete(
-        f"data/comments/{comment['id']}/preview-files/{preview_file['id']}",
+        f"actions/tasks/{task['id']}/comments/{comment['id']}"
+        f"/preview-files/{preview_file['id']}",
         client=client,
     )
 
@@ -2055,6 +2057,7 @@ def acknowledge_comment(
 
 
 def reply_to_comment(
+    task: str | dict,
     comment: str | dict,
     text: str,
     person: str | dict | None = None,
@@ -2064,6 +2067,7 @@ def reply_to_comment(
     Reply to an existing comment.
 
     Args:
+        task (str / dict): The task the comment belongs to.
         comment (str / dict): The comment dict or id to reply to.
         text (str): The reply text.
         person (str / dict): The person dict or id making the reply.
@@ -2071,19 +2075,21 @@ def reply_to_comment(
     Returns:
         dict: Created reply comment.
     """
+    task = normalize_model_parameter(task)
     comment = normalize_model_parameter(comment)
     data = {"text": text}
     if person is not None:
         person = normalize_model_parameter(person)
         data["person_id"] = person["id"]
     return raw.post(
-        f"data/comments/{comment['id']}/replies",
+        f"data/tasks/{task['id']}/comments/{comment['id']}/reply",
         data,
         client=client,
     )
 
 
 def delete_comment_attachment(
+    task: str | dict,
     comment: str | dict,
     attachment_file: str | dict,
     client: KitsuClient = default,
@@ -2092,21 +2098,25 @@ def delete_comment_attachment(
     Delete an attachment from a comment.
 
     Args:
+        task (str / dict): The task the comment belongs to.
         comment (str / dict): The comment dict or id.
         attachment_file (str / dict): The attachment file dict or id.
 
     Returns:
         str: Request response object.
     """
+    task = normalize_model_parameter(task)
     comment = normalize_model_parameter(comment)
     attachment_file = normalize_model_parameter(attachment_file)
     return raw.delete(
-        f"data/comments/{comment['id']}/attachment-files/{attachment_file['id']}",
+        f"data/tasks/{task['id']}/comments/{comment['id']}"
+        f"/attachments/{attachment_file['id']}",
         client=client,
     )
 
 
 def delete_comment_reply(
+    task: str | dict,
     comment: str | dict,
     reply: str | dict,
     client: KitsuClient = default,
@@ -2115,16 +2125,19 @@ def delete_comment_reply(
     Delete a reply to a comment.
 
     Args:
+        task (str / dict): The task the comment belongs to.
         comment (str / dict): The comment dict or id.
         reply (str / dict): The reply comment dict or id.
 
     Returns:
         str: Request response object.
     """
+    task = normalize_model_parameter(task)
     comment = normalize_model_parameter(comment)
     reply = normalize_model_parameter(reply)
     return raw.delete(
-        f"data/comments/{comment['id']}/replies/{reply['id']}",
+        f"data/tasks/{task['id']}/comments/{comment['id']}"
+        f"/reply/{reply['id']}",
         client=client,
     )
 

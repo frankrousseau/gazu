@@ -1210,7 +1210,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                "data/tasks/open",
+                "data/tasks/open-tasks",
                 text=[{"id": fakeid("task-1")}, {"id": fakeid("task-2")}],
             )
             tasks = gazu.task.all_open_tasks()
@@ -1221,7 +1221,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                "data/tasks/open/stats",
+                "data/tasks/open-tasks/stats",
                 text={"total": 10, "by_status": {}},
             )
             stats = gazu.task.get_open_tasks_stats()
@@ -1257,7 +1257,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/persons/{fakeid('person-1')}/task-types/{fakeid('task-type-1')}/tasks",
+                f"data/persons/{fakeid('person-1')}/related-tasks/{fakeid('task-type-1')}",
                 text=[{"id": fakeid("task-1")}],
             )
             tasks = gazu.task.all_tasks_for_person_and_type(
@@ -1323,10 +1323,10 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/projects/{fakeid('project-1')}/persons/tasks/dates",
+                "data/persons/task-dates",
                 text={"person-1": ["2025-01-15"]},
             )
-            dates = gazu.task.get_persons_tasks_dates(fakeid("project-1"))
+            dates = gazu.task.get_persons_tasks_dates()
             self.assertIn("person-1", dates)
 
     def test_remove_tasks_for_type(self):
@@ -1334,7 +1334,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/projects/{fakeid('project-1')}/task-types/{fakeid('task-type-1')}/tasks",
+                f"actions/projects/{fakeid('project-1')}/task-types/{fakeid('task-type-1')}/delete-tasks",
                 status_code=204,
             )
             gazu.task.remove_tasks_for_type(
@@ -1346,11 +1346,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                "data/tasks/delete-batch",
+                f"actions/projects/{fakeid('project-1')}/delete-tasks",
                 text={"deleted": 2},
             )
             result = gazu.task.remove_tasks_batch(
-                [fakeid("task-1"), fakeid("task-2")]
+                fakeid("project-1"), [fakeid("task-1"), fakeid("task-2")]
             )
             self.assertEqual(result["deleted"], 2)
 
@@ -1359,7 +1359,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "PUT",
-                "data/tasks/assign",
+                f"actions/persons/{fakeid('person-1')}/assign",
                 text={"assigned": 2},
             )
             result = gazu.task.assign_tasks_to_person(
@@ -1372,7 +1372,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/tasks/{fakeid('task-1')}/time-spent/for-date?date=2025-01-15",
+                f"actions/tasks/{fakeid('task-1')}/time-spents/2025-01-15",
                 text={"duration": 3600},
             )
             time_spent = gazu.task.get_task_time_spent_for_date(
@@ -1411,11 +1411,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/comments/{fakeid('comment-1')}/preview-files/{fakeid('preview-1')}",
+                f"actions/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/preview-files/{fakeid('preview-1')}",
                 status_code=204,
             )
             gazu.task.remove_preview_from_comment(
-                fakeid("comment-1"), fakeid("preview-1")
+                fakeid("task-1"), fakeid("comment-1"), fakeid("preview-1")
             )
 
     def test_create_shot_tasks(self):
@@ -1522,11 +1522,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                f"data/comments/{fakeid('comment-1')}/replies",
+                f"data/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/reply",
                 text={"id": fakeid("reply-1"), "text": "This is a reply"},
             )
             result = gazu.task.reply_to_comment(
-                fakeid("comment-1"), "This is a reply"
+                fakeid("task-1"), fakeid("comment-1"), "This is a reply"
             )
             self.assertEqual(result["id"], fakeid("reply-1"))
             self.assertEqual(result["text"], "This is a reply")
@@ -1536,7 +1536,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                f"data/comments/{fakeid('comment-1')}/replies",
+                f"data/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/reply",
                 text={
                     "id": fakeid("reply-1"),
                     "text": "This is a reply",
@@ -1544,6 +1544,7 @@ class TaskTestCase(unittest.TestCase):
                 },
             )
             result = gazu.task.reply_to_comment(
+                fakeid("task-1"),
                 fakeid("comment-1"),
                 "This is a reply",
                 person=fakeid("person-1"),
@@ -1556,11 +1557,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/comments/{fakeid('comment-1')}/attachment-files/{fakeid('attachment-1')}",
+                f"data/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/attachments/{fakeid('attachment-1')}",
                 status_code=204,
             )
             gazu.task.delete_comment_attachment(
-                fakeid("comment-1"), fakeid("attachment-1")
+                fakeid("task-1"), fakeid("comment-1"), fakeid("attachment-1")
             )
 
     def test_delete_comment_reply(self):
@@ -1568,11 +1569,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/comments/{fakeid('comment-1')}/replies/{fakeid('reply-1')}",
+                f"data/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/reply/{fakeid('reply-1')}",
                 status_code=204,
             )
             gazu.task.delete_comment_reply(
-                fakeid("comment-1"), fakeid("reply-1")
+                fakeid("task-1"), fakeid("comment-1"), fakeid("reply-1")
             )
 
     def test_create_multiple_comments(self):
