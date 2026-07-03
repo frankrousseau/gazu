@@ -202,15 +202,20 @@ def create_session(
         use_refresh_token=use_refresh_token,
         callback_not_authenticated=callback_not_authenticated,
     )
-    log_in(
-        email,
-        password,
-        totp=totp,
-        email_otp=email_otp,
-        fido_authentication_response=fido_authentication_response,
-        recovery_code=recovery_code,
-        client=client,
-    )
+    try:
+        log_in(
+            email,
+            password,
+            totp=totp,
+            email_otp=email_otp,
+            fido_authentication_response=fido_authentication_response,
+            recovery_code=recovery_code,
+            client=client,
+        )
+    except Exception:
+        # Don't leak the underlying requests session if login fails.
+        client.session.close()
+        raise
     return client
 
 
