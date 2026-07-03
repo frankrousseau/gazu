@@ -358,7 +358,8 @@ def add_metadata_descriptor(
     Args:
         project (dict / ID): The project dict or id.
         name (str): The name of the metadata descriptor
-        entity_type (str): asset, shot or scene.
+        entity_type (str): One of "Asset", "Shot", "Edit", "Episode",
+            "Sequence", "Project".
         data_type (str): The value type, defaults to "string".
         choices (list): A list of possible values, empty list for free values.
         for_client (bool) : Wheter it should be displayed in Kitsu or not.
