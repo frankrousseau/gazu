@@ -558,31 +558,6 @@ def get_task_type_by_short_name(
 
 
 @cache
-def get_task_by_path(
-    project: str | dict,
-    file_path: str,
-    entity_type: str = "shot",
-    client: KitsuClient = default,
-) -> dict:
-    """
-    Args:
-        project (str / dict): The project dict or the project ID.
-        file_path (str): The file path to find a related task.
-        entity_type (str): asset, shot or scene.
-
-    Returns:
-        dict: A task from given file path. This function requires context:
-        the project related to the given path and the related entity type.
-    """
-    project = normalize_model_parameter(project)
-    data = {
-        "file_path": file_path,
-        "project_id": project["id"],
-        "type": entity_type,
-    }
-    return raw.post("data/tasks/from-path/", data, client=client)
-
-
 @cache
 def get_default_task_status(client: KitsuClient = default) -> dict | None:
     """
@@ -1727,23 +1702,6 @@ def all_previews_for_task(
 
 
 @cache
-def all_open_tasks_for_person(
-    person: str | dict, client: KitsuClient = default
-) -> list[dict]:
-    """
-    Get all open tasks for a person.
-
-    Args:
-        person (str / dict): The person dict or id.
-
-    Returns:
-        list: Open tasks for the person.
-    """
-    person = normalize_model_parameter(person)
-    return raw.fetch_all(f"persons/{person['id']}/tasks/open", client=client)
-
-
-@cache
 def all_tasks_for_person_and_type(
     person: str | dict, task_type: str | dict, client: KitsuClient = default
 ) -> list[dict]:
@@ -1950,30 +1908,6 @@ def remove_time_spent(
     """
     time_spent = normalize_model_parameter(time_spent)
     return raw.delete(f"data/time-spents/{time_spent['id']}", client=client)
-
-
-def add_preview_to_comment(
-    comment: str | dict,
-    preview_file: str | dict,
-    client: KitsuClient = default,
-) -> dict:
-    """
-    Add a preview to a comment.
-
-    Args:
-        comment (str / dict): The comment dict or id.
-        preview_file (str / dict): The preview file dict or id.
-
-    Returns:
-        dict: Updated comment.
-    """
-    comment = normalize_model_parameter(comment)
-    preview_file = normalize_model_parameter(preview_file)
-    return raw.post(
-        f"data/comments/{comment['id']}/preview-files",
-        {"preview_file_id": preview_file["id"]},
-        client=client,
-    )
 
 
 def remove_preview_from_comment(

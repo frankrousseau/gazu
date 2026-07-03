@@ -190,27 +190,6 @@ class TaskTestCase(unittest.TestCase):
             task_type = gazu.task.get_task_type_by_short_name("FX")
             self.assertEqual(task_type["name"], "FX")
 
-    def test_get_task_by_path(self):
-        with requests_mock.mock() as mock:
-            file_path = "/simple/SE01/S01/animation/blocking"
-            mock.post(
-                gazu.client.get_full_url("data/tasks/from-path"),
-                text=json.dumps({"id": "task-id"}),
-            )
-            task = gazu.task.get_task_by_path(
-                {"id": "project-id"}, file_path, "shot"
-            )
-            body = mock.request_history[0].body
-            request_body_string = (
-                body.decode("utf-8") if isinstance(body, bytes) else body
-            )
-            request_body = json.loads(request_body_string)
-            self.assertEqual(request_body["project_id"], "project-id")
-            self.assertEqual(request_body["type"], "shot")
-            self.assertEqual(request_body["file_path"], file_path)
-            self.assertIsNotNone(task)
-            self.assertEqual(task["id"], "task-id")
-
     def test_get_task_status(self):
         with requests_mock.mock() as mock:
             path = "data/task-status/status-01"
@@ -1241,17 +1220,6 @@ class TaskTestCase(unittest.TestCase):
             previews = gazu.task.all_previews_for_task(fakeid("task-1"))
             self.assertEqual(len(previews), 2)
 
-    def test_all_open_tasks_for_person(self):
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "GET",
-                f"data/persons/{fakeid('person-1')}/tasks/open",
-                text=[{"id": fakeid("task-1")}],
-            )
-            tasks = gazu.task.all_open_tasks_for_person(fakeid("person-1"))
-            self.assertEqual(len(tasks), 1)
-
     def test_all_tasks_for_person_and_type(self):
         with requests_mock.mock() as mock:
             mock_route(
@@ -1389,22 +1357,6 @@ class TaskTestCase(unittest.TestCase):
                 status_code=204,
             )
             gazu.task.remove_time_spent(fakeid("time-spent-1"))
-
-    def test_add_preview_to_comment(self):
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "POST",
-                f"data/comments/{fakeid('comment-1')}/preview-files",
-                text={
-                    "id": fakeid("comment-1"),
-                    "preview_files": [fakeid("preview-1")],
-                },
-            )
-            result = gazu.task.add_preview_to_comment(
-                fakeid("comment-1"), fakeid("preview-1")
-            )
-            self.assertEqual(result["id"], fakeid("comment-1"))
 
     def test_remove_preview_from_comment(self):
         with requests_mock.mock() as mock:
