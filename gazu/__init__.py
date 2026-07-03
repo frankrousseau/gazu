@@ -128,7 +128,9 @@ def log_out(client=raw.default_client):
     tokens = {}
     try:
         raw.get("auth/logout", client=client)
-    except ParameterException:
+    except (ParameterException, NotAuthenticatedException):
+        # Clear the local tokens even if the server rejects the logout
+        # (e.g. the access token has already expired).
         pass
     raw.set_tokens(tokens, client=client)
     return tokens
