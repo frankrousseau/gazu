@@ -179,7 +179,7 @@ class ProjectTestCase(unittest.TestCase):
                 request_body["project_template_id"], fakeid("template-1")
             )
 
-    def test_remove_project(self):
+    def test_remove_project_with_force(self):
         with requests_mock.mock() as mock:
             mock.delete(
                 gazu.client.get_full_url(
