@@ -50,9 +50,16 @@ def load_config():
 
 
 def save_config(data):
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    with open(CONFIG_FILE, "w") as f:
+    # makedirs honors mode only when it creates the dir; enforce 0700 either
+    # way so the token file never sits in a world-readable directory.
+    os.makedirs(CONFIG_DIR, mode=0o700, exist_ok=True)
+    os.chmod(CONFIG_DIR, 0o700)
+    # Create the file 0600 from the start: open("w") + chmod would leave a
+    # brief window where the tokens are world-readable.
+    fd = os.open(CONFIG_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
         json.dump(data, f, indent=2)
+    # os.open does not tighten an already-existing file: enforce 0600.
     os.chmod(CONFIG_FILE, 0o600)
 
 
