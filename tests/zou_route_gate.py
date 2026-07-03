@@ -55,11 +55,6 @@ _ALLOWED_BROKEN = {
     "/data/user/projects/<project_id>/assets",
     "/data/user/projects/<project_id>/scenes",
     "/data/user/episodes/<project_id>/sequences",
-    # get_project_quotas / get_project_person_quotas: Zou serves
-    # quotas/<task_type_id> and quotas/persons/<person_id>, not these bare
-    # paths. Surfaced by this gate; needs the intended API confirmed.
-    "/data/projects/<project_id>/quotas",
-    "/data/projects/<project_id>/person-quotas",
 }
 _BROKEN_PATTERNS = [_to_regex(r) for r in _ALLOWED_BROKEN]
 

@@ -739,18 +739,21 @@ class ProjectTestCase(unittest.TestCase):
     def test_project_quotas(self):
         with requests_mock.mock() as mock:
             project_id = fakeid("project-1")
-            quotas_path = f"data/projects/{project_id}/quotas"
+            task_type_id = fakeid("task-type-1")
+            quotas_path = f"data/projects/{project_id}/quotas/{task_type_id}"
             mock_route(
                 mock,
                 "GET",
                 quotas_path,
                 text=[{"id": fakeid("quota-1")}, {"id": fakeid("quota-2")}],
             )
-            quotas = gazu.project.get_project_quotas(project_id)
+            quotas = gazu.project.get_project_quotas(project_id, task_type_id)
             self.assertEqual(len(quotas), 2)
 
             person_id = fakeid("person-1")
-            person_path = f"data/projects/{project_id}/person-quotas?person_id={person_id}"
+            person_path = (
+                f"data/projects/{project_id}/quotas/persons/{person_id}"
+            )
             mock_route(
                 mock,
                 "GET",

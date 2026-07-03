@@ -785,16 +785,22 @@ def get_milestones(
 
 @cache
 def get_project_quotas(
-    project: str | dict, client: KitsuClient = default
+    project: str | dict,
+    task_type: str | dict,
+    client: KitsuClient = default,
 ) -> list[dict]:
     """
-    Get quotas for a project.
+    Get quotas for a project and a task type.
 
     Args:
         project (dict / ID): The project dict or id.
+        task_type (dict / ID): The task type quotas are computed for.
     """
     project = normalize_model_parameter(project)
-    return raw.fetch_all(f"projects/{project['id']}/quotas", client=client)
+    task_type = normalize_model_parameter(task_type)
+    return raw.fetch_all(
+        f"projects/{project['id']}/quotas/{task_type['id']}", client=client
+    )
 
 
 @cache
@@ -811,8 +817,7 @@ def get_project_person_quotas(
     project = normalize_model_parameter(project)
     person = normalize_model_parameter(person)
     return raw.fetch_all(
-        f"projects/{project['id']}/person-quotas",
-        params={"person_id": person["id"]},
+        f"projects/{project['id']}/quotas/persons/{person['id']}",
         client=client,
     )
 
