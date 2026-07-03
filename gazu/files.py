@@ -494,7 +494,12 @@ def build_working_file_path(
     Returns:
         Generated working file path for given task (without extension).
     """
-    data = {"mode": mode, "name": name, "revision": revision}
+    data = {
+        "mode": mode,
+        "name": name,
+        "revision": revision,
+        "separator": sep,
+    }
     task = normalize_model_parameter(task)
     software = normalize_model_parameter(software)
     if software is not None:

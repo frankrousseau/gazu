@@ -22,9 +22,11 @@ class FilesTestCase(unittest.TestCase):
                 ),
             )
             path = gazu.files.build_working_file_path(
-                {"id": "task-01"}, software={"id": "software-1"}
+                {"id": "task-01"}, software={"id": "software-1"}, sep="\\"
             )
-            self.assertEqual(path, "U:/PROD/FX/S01/P01/Tree/filename.max")
+            self.assertEqual(path, "U:/PROD/FX/S01/P01/Tree\\filename.max")
+            # The chosen separator must reach the server too.
+            self.assertEqual(mock.last_request.json()["separator"], "\\")
 
     def test_new_working_file(self):
         with requests_mock.mock() as mock:
