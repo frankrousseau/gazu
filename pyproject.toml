@@ -66,5 +66,8 @@ version = { attr = "gazu.__version__.__version__" }
 [tool.setuptools.packages.find]
 include = ["gazu*"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.black]
 line-length = 79
