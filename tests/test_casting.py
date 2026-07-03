@@ -143,7 +143,7 @@ class CastingTestCase(unittest.TestCase):
 
     def test_get_sequence_shots_casting(self):
         casting = {fakeid("shot-1"): [{"asset_id": fakeid("asset-1")}]}
-        path = f"data/projects/{fakeid('project-01')}/sequences/{fakeid('sequence-01')}/shots/casting"
+        path = f"data/projects/{fakeid('project-01')}/sequences/{fakeid('sequence-01')}/casting"
         with requests_mock.mock() as mock:
             mock.get(gazu.client.get_full_url(path), text=json.dumps(casting))
             result = gazu.casting.get_sequence_shots_casting(
@@ -155,7 +155,7 @@ class CastingTestCase(unittest.TestCase):
 
     def test_get_episode_shots_casting(self):
         casting = {fakeid("shot-1"): [{"asset_id": fakeid("asset-1")}]}
-        path = f"data/projects/{fakeid('project-01')}/episodes/{fakeid('episode-01')}/shots/casting"
+        path = f"data/projects/{fakeid('project-01')}/episodes/{fakeid('episode-01')}/sequences/all/casting"
         with requests_mock.mock() as mock:
             mock.get(gazu.client.get_full_url(path), text=json.dumps(casting))
             result = gazu.casting.get_episode_shots_casting(
@@ -167,7 +167,7 @@ class CastingTestCase(unittest.TestCase):
 
     def test_get_project_shots_casting(self):
         casting = {fakeid("shot-1"): [{"asset_id": fakeid("asset-1")}]}
-        path = f"data/projects/{fakeid('project-01')}/shots/casting"
+        path = f"data/projects/{fakeid('project-01')}/sequences/all/casting"
         with requests_mock.mock() as mock:
             mock.get(gazu.client.get_full_url(path), text=json.dumps(casting))
             result = gazu.casting.get_project_shots_casting(

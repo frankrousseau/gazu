@@ -261,7 +261,7 @@ def get_sequence_shots_casting(
     """
     project = normalize_model_parameter(project)
     sequence = normalize_model_parameter(sequence)
-    path = f"data/projects/{project['id']}/sequences/{sequence['id']}/shots/casting"
+    path = f"data/projects/{project['id']}/sequences/{sequence['id']}/casting"
     return raw.get(path, client=client)
 
 
@@ -283,7 +283,8 @@ def get_episode_shots_casting(
     project = normalize_model_parameter(project)
     episode = normalize_model_parameter(episode)
     path = (
-        f"data/projects/{project['id']}/episodes/{episode['id']}/shots/casting"
+        f"data/projects/{project['id']}/episodes/{episode['id']}"
+        "/sequences/all/casting"
     )
     return raw.get(path, client=client)
 
@@ -303,7 +304,7 @@ def get_project_shots_casting(
             representing which assets are cast in each shot of the project.
     """
     project = normalize_model_parameter(project)
-    path = f"data/projects/{project['id']}/shots/casting"
+    path = f"data/projects/{project['id']}/sequences/all/casting"
     return raw.get(path, client=client)
 
 
