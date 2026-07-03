@@ -1574,9 +1574,11 @@ def update_task(task: dict, client: KitsuClient = default) -> dict:
         dict: Updated task.
     """
     if "assignees" in task:
-        task["assignees"] = normalize_list_of_models_for_links(
-            task["assignees"]
-        )
+        # Copy before normalizing so the caller's dict is left untouched.
+        task = {
+            **task,
+            "assignees": normalize_list_of_models_for_links(task["assignees"]),
+        }
     return raw.put(f"data/tasks/{task['id']}", task, client=client)
 
 

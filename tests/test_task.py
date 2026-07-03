@@ -892,15 +892,17 @@ class TaskTestCase(unittest.TestCase):
             task = {
                 "id": fakeid("task-1"),
                 "name": "task-1",
-                "assignees": [fakeid("person-1")],
+                "assignees": [{"id": fakeid("person-1")}],
             }
             mock_route(
                 mock,
                 "PUT",
                 f"data/tasks/{fakeid('task-1')}",
-                text=task,
+                text={"id": fakeid("task-1")},
             )
-            self.assertEqual(gazu.task.update_task(task), task)
+            gazu.task.update_task(task)
+            # The caller's dict must not be normalized in place.
+            self.assertEqual(task["assignees"], [{"id": fakeid("person-1")}])
 
     def test_update_task_status(self):
         with requests_mock.mock() as mock:
