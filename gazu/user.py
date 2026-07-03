@@ -484,7 +484,7 @@ def all_tasks_requiring_feedback(client: KitsuClient = default) -> list[dict]:
     Returns:
         list: Tasks requiring feedback.
     """
-    return raw.fetch_all("user/tasks-requiring-feedback", client=client)
+    return raw.fetch_all("user/tasks-to-check", client=client)
 
 
 @cache
@@ -598,38 +598,40 @@ def get_time_spents_by_date(date: str, client: KitsuClient = default) -> list:
     Returns:
         list: Time spents for the date.
     """
-    return raw.get(
-        "data/user/time-spents/by-date", params={"date": date}, client=client
-    )
+    return raw.get(f"data/user/time-spents/{date}", client=client)
 
 
 @cache
 def get_task_time_spent(
-    task: str | dict, client: KitsuClient = default
+    task: str | dict, date: str, client: KitsuClient = default
 ) -> dict:
     """
-    Get time spent for a specific task.
+    Get time spent by the current user on a task for a given date.
 
     Args:
         task (str / dict): The task dict or id.
+        date (str): Date in YYYY-MM-DD format.
 
     Returns:
-        dict: Time spent information for the task.
+        dict: Time spent information for the task on that date.
     """
     task = normalize_model_parameter(task)
-    path = f"data/user/tasks/{task['id']}/time-spent"
+    path = f"data/user/tasks/{task['id']}/time-spents/{date}"
     return raw.get(path, client=client)
 
 
 @cache
-def get_day_off(client: KitsuClient = default) -> dict:
+def get_day_off(date: str, client: KitsuClient = default) -> dict:
     """
-    Get day off information for current user.
+    Get day off information for the current user on a given date.
+
+    Args:
+        date (str): Date in YYYY-MM-DD format.
 
     Returns:
         dict: Day off information.
     """
-    return raw.get("data/user/day-off", client=client)
+    return raw.get(f"data/user/day-offs/{date}", client=client)
 
 
 @cache
@@ -695,7 +697,7 @@ def check_task_subscription(
         dict: Subscription status.
     """
     task = normalize_model_parameter(task)
-    path = f"data/user/tasks/{task['id']}/subscription"
+    path = f"data/user/tasks/{task['id']}/subscribed"
     return raw.get(path, client=client)
 
 
@@ -710,7 +712,7 @@ def subscribe_to_task(task: str | dict, client: KitsuClient = default) -> dict:
         dict: Subscription information.
     """
     task = normalize_model_parameter(task)
-    path = f"data/user/tasks/{task['id']}/subscribe"
+    path = f"actions/user/tasks/{task['id']}/subscribe"
     return raw.post(path, {}, client=client)
 
 
@@ -724,7 +726,7 @@ def unsubscribe_from_task(
         task (str / dict): The task dict or id.
     """
     task = normalize_model_parameter(task)
-    path = f"data/user/tasks/{task['id']}/unsubscribe"
+    path = f"actions/user/tasks/{task['id']}/unsubscribe"
     return raw.delete(path, client=client)
 
 
@@ -750,7 +752,7 @@ def join_chat(chat: str | dict, client: KitsuClient = default) -> dict:
         dict: Chat information.
     """
     chat = normalize_model_parameter(chat)
-    path = f"data/user/chats/{chat['id']}/join"
+    path = f"actions/user/chats/{chat['id']}/join"
     return raw.post(path, {}, client=client)
 
 
@@ -762,7 +764,8 @@ def leave_chat(chat: str | dict, client: KitsuClient = default) -> str:
         chat (str / dict): The chat dict or id.
     """
     chat = normalize_model_parameter(chat)
-    path = f"data/user/chats/{chat['id']}/leave"
+    # Leaving is a DELETE on the same join route.
+    path = f"actions/user/chats/{chat['id']}/join"
     return raw.delete(path, client=client)
 
 
@@ -770,7 +773,7 @@ def clear_avatar(client: KitsuClient = default) -> str:
     """
     Clear user avatar.
     """
-    return raw.delete("data/user/avatar", client=client)
+    return raw.delete("actions/user/clear-avatar", client=client)
 
 
 def mark_all_notifications_as_read(
@@ -782,4 +785,6 @@ def mark_all_notifications_as_read(
     Returns:
         dict: Response information.
     """
-    return raw.post("data/user/notifications/read-all", {}, client=client)
+    return raw.post(
+        "actions/user/notifications/mark-all-as-read", {}, client=client
+    )
