@@ -56,10 +56,10 @@ class FilesTestCase(unittest.TestCase):
                     software={"id": "software-1"},
                 )
 
-                self.assertTrue(
-                    str(context.exception)
-                    == "The given working file already exists."
-                )
+            self.assertIn(
+                "The given working file already exists.",
+                str(context.exception),
+            )
 
     def test_new_entity_output_file(self):
         entity = {"id": "asset-01"}
