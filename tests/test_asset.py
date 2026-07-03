@@ -632,7 +632,7 @@ class CastingTestCase(unittest.TestCase):
 
     def test_get_episode_from_asset(self):
         self.assertEqual(
-            gazu.asset.get_episode_from_asset(asset={"parent_id": None}), None
+            gazu.asset.get_episode_from_asset(asset={"source_id": None}), None
         )
         with requests_mock.mock() as mock:
             result = {"name": "Episode 01", "project_id": "project-01"}
@@ -644,7 +644,7 @@ class CastingTestCase(unittest.TestCase):
             )
             self.assertEqual(
                 gazu.asset.get_episode_from_asset(
-                    {"parent_id": fakeid("episode-1")}
+                    {"source_id": fakeid("episode-1")}
                 ),
                 result,
             )

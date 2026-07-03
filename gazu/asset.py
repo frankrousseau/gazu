@@ -683,10 +683,12 @@ def get_episode_from_asset(
         dict: Episode which is parent of given asset, or None if not part of
             an episode.
     """
-    if asset["parent_id"] is None:
+    # Assets link to their episode through source_id (serialized as
+    # episode_id in API listings); parent_id is the asset-hierarchy link.
+    episode_id = asset.get("source_id") or asset.get("episode_id")
+    if episode_id is None:
         return None
-    else:
-        return gazu_shot.get_episode(asset["parent_id"], client=client)
+    return gazu_shot.get_episode(episode_id, client=client)
 
 
 @cache
