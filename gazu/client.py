@@ -26,13 +26,17 @@ from .exception import (
 from urllib.parse import urlencode
 
 logger = logging.getLogger("gazu")
+# Library convention: no output unless the host app configures logging.
+logger.addHandler(logging.NullHandler())
 
 # Bound the auth-recovery retries to avoid an infinite loop.
 MAX_AUTH_RETRIES = 3
 
 if os.getenv("GAZU_DEBUG", "false").lower() == "true":
-    logging.basicConfig(level=logging.DEBUG)
+    # Debug opt-in: only touch the "gazu" logger, never the root logger
+    # (configuring the host application's logging is not gazu's business).
     logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler())
 
 
 class KitsuClient(object):
