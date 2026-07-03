@@ -532,6 +532,19 @@ def tasks(ctx, project_opt, task_type, task_status):
             click.echo(f"Task type not found: {task_type}", err=True)
             raise SystemExit(1)
         data = gazu_task.all_tasks_for_task_type(proj, tt)
+    elif task_status:
+        ts = gazu_task.get_task_status_by_short_name(task_status)
+        if ts is None:
+            click.echo(f"Task status not found: {task_status}", err=True)
+            raise SystemExit(1)
+        all_project_tasks = raw.fetch_all(
+            "tasks", {"project_id": proj["id"]}, client=raw.default_client
+        )
+        data = [
+            task
+            for task in all_project_tasks
+            if task.get("task_status_id") == ts["id"]
+        ]
     else:
         data = raw.fetch_all(
             "tasks", {"project_id": proj["id"]}, client=raw.default_client
@@ -693,7 +706,9 @@ def shot_casting(ctx, shot_id):
     Show casting (assets linked) for a shot.
     """
     setup_client()
-    data = gazu_casting.get_shot_casting(shot_id)
+    # get_shot_casting needs the shot's project_id, so fetch the full shot.
+    shot = gazu_shot.get_shot(shot_id)
+    data = gazu_casting.get_shot_casting(shot)
     if ctx.obj["json"]:
         click.echo(json.dumps(data, indent=2, default=str))
     else:
