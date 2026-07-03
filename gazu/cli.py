@@ -229,8 +229,9 @@ def login(host, email, password):
     """
     Log in to a Kitsu instance and store credentials.
     """
+    host = host.rstrip("/")
     if not host.endswith("/api"):
-        host = host.rstrip("/") + "/api"
+        host = host + "/api"
     gazu.set_host(host)
     tokens = gazu.log_in(email, password)
     save_config({"host": host, "tokens": tokens})
