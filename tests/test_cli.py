@@ -7,6 +7,10 @@ import tempfile
 import unittest
 from unittest import mock
 
+import pytest
+
+pytest.importorskip("click")  # cli extra is optional; skip if absent
+
 import requests_mock
 from click.testing import CliRunner
 
