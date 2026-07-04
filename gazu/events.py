@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import socketio
 import logging
 import os

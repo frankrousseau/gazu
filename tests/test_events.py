@@ -21,7 +21,8 @@ class EventsInitTestCase(unittest.TestCase):
         client = self._make_client(verify=False, refresh_token="ref")
         gazu.events.init(client=client)
         # ssl_verify is inherited from the client (False), not forced to True.
-        self.assertFalse(Client.call_args.kwargs["ssl_verify"])
+        # call_args[1] (kwargs) works on 3.7; .kwargs is 3.8+.
+        self.assertFalse(Client.call_args[1]["ssl_verify"])
 
     @mock.patch("gazu.events.socketio.Client")
     def test_init_refreshes_token_on_reconnect_only(self, Client):
