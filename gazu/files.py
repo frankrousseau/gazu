@@ -1125,27 +1125,6 @@ def update_output_file(
     return raw.put(path, data, client=client)
 
 
-def set_project_file_tree(
-    project: str | dict, file_tree_name: str, client: KitsuClient = default
-) -> dict:
-    """
-    (Deprecated) Set given file tree template on given project. This template
-    will be used to generate file paths. The template is selected from sources.
-    It is found by using given name.
-
-    Args:
-        project (str / dict): The project file dict or ID.
-
-    Returns:
-        dict: Modified project.
-
-    """
-    project = normalize_model_parameter(project)
-    data = {"tree_name": file_tree_name}
-    path = f"actions/projects/{project['id']}/set-file-tree"
-    return raw.post(path, data, client=client)
-
-
 def update_project_file_tree(
     project: str | dict, file_tree: dict, client: KitsuClient = default
 ) -> dict:

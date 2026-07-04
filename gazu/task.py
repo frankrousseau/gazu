@@ -803,42 +803,6 @@ def start_task(
     return add_comment(task, started_task_status, person=person, client=client)
 
 
-def task_to_review(
-    task: str | dict,
-    person: str | dict,
-    comment: str,
-    revision: int = 1,
-    change_status: bool = True,
-    client: KitsuClient = default,
-) -> dict:
-    """
-    Deprecated.
-    Mark given task as pending, waiting for approval. Author is given through
-    the person argument.
-
-    Args:
-        task (str / dict): The task dict or the task ID.
-        person (str / dict): The person dict or the person ID.
-        comment (str): Comment text
-        revision (int): Force revision of related preview file
-        change_status (bool): If set to false, the task status is not changed.
-
-    Returns:
-        dict: Modified task
-    """
-    task = normalize_model_parameter(task)
-    person = normalize_model_parameter(person)
-    path = f"actions/tasks/{task['id']}/to-review"
-    data = {
-        "person_id": person["id"],
-        "comment": comment,
-        "revision": revision,
-        "change_status": change_status,
-    }
-
-    return raw.put(path, data, client=client)
-
-
 @cache
 def get_time_spent(
     task: str | dict, date: str | None = None, client: KitsuClient = default

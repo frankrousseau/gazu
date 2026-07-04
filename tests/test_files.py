@@ -631,22 +631,6 @@ class FilesTestCase(unittest.TestCase):
             working_file = gazu.files.update_modification_date(working_file)
             self.assertEqual(working_file["id"], "working-file-01")
 
-    def test_set_project_file_tree(self):
-        with requests_mock.mock() as mock:
-            path = "actions/projects/project-01/set-file-tree"
-            mock.post(
-                gazu.client.get_full_url(path),
-                text=json.dumps(
-                    {
-                        "name": "standard file tree",
-                        "template": "<Project>/<AssetType>/<Asset>/<Task>",
-                    }
-                ),
-            )
-            project = {"id": "project-01"}
-            file_tree = gazu.files.set_project_file_tree(project, "standard")
-            self.assertEqual(file_tree["name"], "standard file tree")
-
     def test_build_entity_output_file_path(self):
         with requests_mock.mock() as mock:
             result_path = "/path/to/entity/file_name.cache"

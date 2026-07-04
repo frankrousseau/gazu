@@ -242,23 +242,6 @@ class TaskTestCase(unittest.TestCase):
             )
             self.assertEqual(gazu.task.start_task(fakeid("task-1")), result)
 
-    def test_to_review(self):
-        with requests_mock.mock() as mock:
-            mock.put(
-                gazu.client.get_full_url("actions/tasks/task-01/to-review"),
-                text=json.dumps(
-                    {"name": "Task 01", "task_status_id": "wfa-1"}
-                ),
-            )
-            test_task = gazu.task.task_to_review(
-                {"id": "task-01"}, {"id": "person-01"}, "my comment"
-            )
-            self.assertEqual(test_task["task_status_id"], "wfa-1")
-            test_task = gazu.task.task_to_review(
-                {"id": "task-01"}, {"id": "person-01"}, "my comment"
-            )
-            self.assertEqual(test_task["task_status_id"], "wfa-1")
-
     def test_get_time_spent(self):
         with requests_mock.mock() as mock:
             mock_route(
