@@ -41,7 +41,7 @@ def all_scenes(
             f"projects/{project['id']}/scenes", client=client
         )
     else:
-        scenes = raw.fetch_all("scenes", client=client)
+        scenes = raw.fetch_all("scenes/all", client=client)
     return sort_by_name(scenes)
 
 
@@ -225,4 +225,7 @@ def get_sequence_from_scene(
     Return sequence which is parent of given scene.
     """
     scene = normalize_model_parameter(scene)
+    if "parent_id" not in scene:
+        # Only an ID was given: fetch the full scene to read its parent.
+        scene = get_scene(scene["id"], client=client)
     return gazu_shot.get_sequence(scene["parent_id"], client=client)

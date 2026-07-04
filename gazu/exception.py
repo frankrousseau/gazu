@@ -1,96 +1,104 @@
-class HostException(Exception):
+class GazuException(Exception):
+    """
+    Base class for every exception raised by gazu. Catch this to handle any
+    gazu error at once. Every specific exception below inherits from it, so
+    existing ``except Exception`` handlers keep working.
+    """
+
+
+class HostException(GazuException):
     """
     Error raised when host is not valid.
     """
 
 
-class AuthFailedException(Exception):
+class AuthFailedException(GazuException):
     """
     Error raised when user credentials are wrong.
     """
 
 
-class NotAuthenticatedException(Exception):
+class NotAuthenticatedException(GazuException):
     """
     Error raised when a 401 error (not authenticated) is sent by the API.
     """
 
 
-class NotAllowedException(Exception):
+class NotAllowedException(GazuException):
     """
     Error raised when a 403 error (not authorized) is sent by the API.
     """
 
 
-class MethodNotAllowedException(Exception):
+class MethodNotAllowedException(GazuException):
     """
     Error raised when a 405 error (method not handled) is sent by the API.
     """
 
 
-class RouteNotFoundException(Exception):
+class RouteNotFoundException(GazuException):
     """
     Error raised when a 404 error (not found) is sent by the API.
     """
 
 
-class ServerErrorException(Exception):
+class ServerErrorException(GazuException):
     """
     Error raised when a 500 error (server error) is sent by the API.
     """
 
 
-class ParameterException(Exception):
+class ParameterException(GazuException):
     """
     Error raised when a 400 error (argument error) is sent by the API.
     """
 
 
-class ValidationException(Exception):
+class ValidationException(GazuException):
     """
     Error raised when a 422 error (unprocessable entity) is sent by the API.
     Carries the validation message returned in the response body.
     """
 
 
-class UploadFailedException(Exception):
+class UploadFailedException(GazuException):
     """
     Error raised when an error while uploading a file, mainly to handle cases
     where processing that occurs on the remote server fails.
     """
 
 
-class TooBigFileException(Exception):
+class TooBigFileException(GazuException):
     """
     Error raised when a 413 error (payload too big error) is sent by the API.
     """
 
 
-class TaskStatusNotFoundException(Exception):
+class TaskStatusNotFoundException(GazuException):
     """
     Error raised when a task status is not found.
     """
 
 
-class DownloadFileException(Exception):
+class DownloadFileException(GazuException):
     """
     Error raised when a file can't be downloaded.
     """
 
 
-class TaskMustBeADictException(Exception):
+class TaskMustBeADictException(GazuException):
     """
     Error raised when a task should be a dict.
     """
 
 
-class FileDoesntExistException(Exception):
+class FileDoesntExistException(GazuException):
     """
     Error raised when a file should exist when we submit a preview.
     """
 
 
-class ProjectDoesntExistException(Exception):
+class ProjectDoesntExistException(GazuException):
     """
     Error raised when a project isn't available.
     """

@@ -60,7 +60,7 @@ class SceneTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                "data/scenes",
+                "data/scenes/all",
                 text=[{"name": "Scene 01", "project_id": "project-01"}],
             )
             project = {"id": "project-01"}
@@ -300,4 +300,24 @@ class SceneTestCase(unittest.TestCase):
                 "parent_id": fakeid("sequence-1"),
             }
             sequence = gazu.scene.get_sequence_from_scene(scene)
+            self.assertEqual(sequence["name"], "sequence-1")
+
+    def test_get_sequence_from_scene_by_id(self):
+        with requests_mock.mock() as mock:
+            mock_route(
+                mock,
+                "GET",
+                f"data/scenes/{fakeid('scene-1')}",
+                text={
+                    "id": fakeid("scene-1"),
+                    "parent_id": fakeid("sequence-1"),
+                },
+            )
+            mock_route(
+                mock,
+                "GET",
+                f"data/sequences/{fakeid('sequence-1')}",
+                text={"id": fakeid("sequence-1"), "name": "sequence-1"},
+            )
+            sequence = gazu.scene.get_sequence_from_scene(fakeid("scene-1"))
             self.assertEqual(sequence["name"], "sequence-1")

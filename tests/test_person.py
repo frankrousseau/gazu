@@ -231,9 +231,13 @@ class PersonTestCase(unittest.TestCase):
             person = {
                 "id": fakeid("person-1"),
                 "phone": "+33 6 07 07 07 07",
-                "departments": [fakeid("department-1")],
+                "departments": [{"id": fakeid("department-1")}],
             }
             self.assertEqual(gazu.person.update_person(person), result)
+            # The caller's dict must not be normalized in place.
+            self.assertEqual(
+                person["departments"], [{"id": fakeid("department-1")}]
+            )
 
     def test_update_bot(self):
         result = {
@@ -399,7 +403,7 @@ class PersonTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/persons/{person_id}/time-spents/by-date?date=2025-01-15",
+                f"data/persons/{person_id}/time-spents/2025-01-15",
                 text=[{"id": fakeid("ts-1")}, {"id": fakeid("ts-2")}],
             )
             time_spents = gazu.person.get_time_spents_by_date(
@@ -613,7 +617,7 @@ class PersonTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/persons/{person_id}/two-factor-authentication",
+                f"actions/persons/{person_id}/disable-two-factor-authentication",
                 status_code=204,
             )
             gazu.person.disable_two_factor_authentication(person_id)
@@ -624,7 +628,7 @@ class PersonTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/persons/{person_id}/avatar",
+                f"actions/persons/{person_id}/clear-avatar",
                 status_code=204,
             )
             gazu.person.clear_person_avatar(person_id)

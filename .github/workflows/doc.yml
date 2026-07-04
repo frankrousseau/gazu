@@ -28,7 +28,8 @@ jobs:
           python -m
           pip install
           -r requirements.txt
-      - uses: ammaraskar/sphinx-action@master
+      # Pinned to a commit SHA (was @master); bump deliberately after review.
+      - uses: ammaraskar/sphinx-action@c61ac11d9ee097caf8983c10c8b5af5861b32b54
         with:
           docs-folder: "docs/"
 

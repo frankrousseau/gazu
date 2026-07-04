@@ -5,6 +5,7 @@ from . import client as raw
 from .client import KitsuClient
 
 from .helpers import normalize_model_parameter
+from .cache import cache
 
 default = raw.default_client
 
@@ -82,6 +83,7 @@ def update_episode_casting(
     return raw.put(path, casting, client=client)
 
 
+@cache
 def get_asset_type_casting(
     project: str | dict, asset_type: str | dict, client: KitsuClient = default
 ) -> dict:
@@ -106,6 +108,7 @@ def get_asset_type_casting(
     return raw.get(path, client=client)
 
 
+@cache
 def get_sequence_casting(
     sequence: dict, client: KitsuClient = default
 ) -> dict:
@@ -124,6 +127,7 @@ def get_sequence_casting(
     return raw.get(path, client=client)
 
 
+@cache
 def get_shot_casting(shot: dict, client: KitsuClient = default) -> list[dict]:
     """
     Return casting for given shot.
@@ -140,6 +144,7 @@ def get_shot_casting(shot: dict, client: KitsuClient = default) -> list[dict]:
     return raw.get(path, client=client)
 
 
+@cache
 def get_asset_casting(
     asset: dict, client: KitsuClient = default
 ) -> list[dict]:
@@ -161,6 +166,7 @@ def get_asset_casting(
     return raw.get(path, client=client)
 
 
+@cache
 def get_episode_casting(
     episode: dict, client: KitsuClient = default
 ) -> list[dict]:
@@ -180,6 +186,7 @@ def get_episode_casting(
     return raw.get(path, client=client)
 
 
+@cache
 def get_asset_cast_in(
     asset: str | dict, client: KitsuClient = default
 ) -> dict:
@@ -199,6 +206,7 @@ def get_asset_cast_in(
     return raw.get(path, client=client)
 
 
+@cache
 def all_entity_links_for_project(
     project: str | dict,
     page: int | None = None,
@@ -225,6 +233,7 @@ def all_entity_links_for_project(
     return raw.fetch_all(path, params=params, client=client)
 
 
+@cache
 def get_episodes_casting(
     project: str | dict, client: KitsuClient = default
 ) -> dict:
@@ -244,6 +253,7 @@ def get_episodes_casting(
     return raw.get(path, client=client)
 
 
+@cache
 def get_sequence_shots_casting(
     project: str | dict, sequence: str | dict, client: KitsuClient = default
 ) -> dict:
@@ -261,10 +271,11 @@ def get_sequence_shots_casting(
     """
     project = normalize_model_parameter(project)
     sequence = normalize_model_parameter(sequence)
-    path = f"data/projects/{project['id']}/sequences/{sequence['id']}/shots/casting"
+    path = f"data/projects/{project['id']}/sequences/{sequence['id']}/casting"
     return raw.get(path, client=client)
 
 
+@cache
 def get_episode_shots_casting(
     project: str | dict, episode: str | dict, client: KitsuClient = default
 ) -> dict:
@@ -283,11 +294,13 @@ def get_episode_shots_casting(
     project = normalize_model_parameter(project)
     episode = normalize_model_parameter(episode)
     path = (
-        f"data/projects/{project['id']}/episodes/{episode['id']}/shots/casting"
+        f"data/projects/{project['id']}/episodes/{episode['id']}"
+        "/sequences/all/casting"
     )
     return raw.get(path, client=client)
 
 
+@cache
 def get_project_shots_casting(
     project: str | dict, client: KitsuClient = default
 ) -> dict:
@@ -303,7 +316,7 @@ def get_project_shots_casting(
             representing which assets are cast in each shot of the project.
     """
     project = normalize_model_parameter(project)
-    path = f"data/projects/{project['id']}/shots/casting"
+    path = f"data/projects/{project['id']}/sequences/all/casting"
     return raw.get(path, client=client)
 
 

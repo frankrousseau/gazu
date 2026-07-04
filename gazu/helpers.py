@@ -107,7 +107,10 @@ def download_file(
     ) as response:
         if response.ok:
             if file_path is None:
-                file_path = tempfile.gettempdir()
+                # Private, unpredictable directory (0700): writing a
+                # URL-derived name straight into the shared temp root would
+                # be vulnerable to symlink pre-creation on shared machines.
+                file_path = tempfile.mkdtemp(prefix="gazu_")
 
             if os.path.isdir(file_path):
                 file_path = file_path + os.sep

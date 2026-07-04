@@ -50,9 +50,16 @@ def load_config():
 
 
 def save_config(data):
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    with open(CONFIG_FILE, "w") as f:
+    # makedirs honors mode only when it creates the dir; enforce 0700 either
+    # way so the token file never sits in a world-readable directory.
+    os.makedirs(CONFIG_DIR, mode=0o700, exist_ok=True)
+    os.chmod(CONFIG_DIR, 0o700)
+    # Create the file 0600 from the start: open("w") + chmod would leave a
+    # brief window where the tokens are world-readable.
+    fd = os.open(CONFIG_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
         json.dump(data, f, indent=2)
+    # os.open does not tighten an already-existing file: enforce 0600.
     os.chmod(CONFIG_FILE, 0o600)
 
 
@@ -79,9 +86,12 @@ def print_table(rows, columns):
     headers = [h for h, _ in columns]
     values = []
     for row in rows:
-        values.append(
-            [_truncate(str(row.get(k, "") or ""), 60) for _, k in columns]
-        )
+        row_vals = []
+        for _, k in columns:
+            # Only blank out None; keep falsy values like 0 or False.
+            value = row.get(k)
+            row_vals.append(_truncate(str("" if value is None else value), 60))
+        values.append(row_vals)
 
     widths = [len(h) for h in headers]
     for row_vals in values:
@@ -229,8 +239,9 @@ def login(host, email, password):
     """
     Log in to a Kitsu instance and store credentials.
     """
+    host = host.rstrip("/")
     if not host.endswith("/api"):
-        host = host.rstrip("/") + "/api"
+        host = host + "/api"
     gazu.set_host(host)
     tokens = gazu.log_in(email, password)
     save_config({"host": host, "tokens": tokens})
@@ -521,6 +532,19 @@ def tasks(ctx, project_opt, task_type, task_status):
             click.echo(f"Task type not found: {task_type}", err=True)
             raise SystemExit(1)
         data = gazu_task.all_tasks_for_task_type(proj, tt)
+    elif task_status:
+        ts = gazu_task.get_task_status_by_short_name(task_status)
+        if ts is None:
+            click.echo(f"Task status not found: {task_status}", err=True)
+            raise SystemExit(1)
+        all_project_tasks = raw.fetch_all(
+            "tasks", {"project_id": proj["id"]}, client=raw.default_client
+        )
+        data = [
+            task
+            for task in all_project_tasks
+            if task.get("task_status_id") == ts["id"]
+        ]
     else:
         data = raw.fetch_all(
             "tasks", {"project_id": proj["id"]}, client=raw.default_client
@@ -682,7 +706,9 @@ def shot_casting(ctx, shot_id):
     Show casting (assets linked) for a shot.
     """
     setup_client()
-    data = gazu_casting.get_shot_casting(shot_id)
+    # get_shot_casting needs the shot's project_id, so fetch the full shot.
+    shot = gazu_shot.get_shot(shot_id)
+    data = gazu_casting.get_shot_casting(shot)
     if ctx.obj["json"]:
         click.echo(json.dumps(data, indent=2, default=str))
     else:

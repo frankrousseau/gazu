@@ -227,6 +227,9 @@ def get_sequence_from_shot(shot: dict, client: KitsuClient = default) -> dict:
         dict: Sequence which is parent of given shot.
     """
     shot = normalize_model_parameter(shot)
+    if "parent_id" not in shot:
+        # Only an ID was given: fetch the full shot to read its parent.
+        shot = get_shot(shot["id"], client=client)
     return get_sequence(shot["parent_id"], client=client)
 
 
@@ -507,13 +510,18 @@ def update_shot_data(
     if data is None:
         data = {}
     shot = normalize_model_parameter(shot)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_shot.clear_cache()
     current_shot = get_shot(shot["id"], client=client)
     current_data = current_shot["data"] or {}
     updated_shot = {
         "id": current_shot["id"],
         "data": {**current_data, **data},
     }
-    return update_shot(updated_shot, client=client)
+    result = update_shot(updated_shot, client=client)
+    get_shot.clear_cache()
+    return result
 
 
 def update_sequence_data(

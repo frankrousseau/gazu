@@ -362,9 +362,13 @@ def update_person(person: dict, client: KitsuClient = default) -> dict:
     """
 
     if isinstance(person, dict) and "departments" in person:
-        person["departments"] = normalize_list_of_models_for_links(
-            person["departments"]
-        )
+        # Copy before normalizing so the caller's dict is left untouched.
+        person = {
+            **person,
+            "departments": normalize_list_of_models_for_links(
+                person["departments"]
+            ),
+        }
 
     person = normalize_model_parameter(person)
     return raw.put(
@@ -559,8 +563,7 @@ def get_time_spents_by_date(
     """
     person = normalize_model_parameter(person)
     return raw.get(
-        f"data/persons/{person['id']}/time-spents/by-date",
-        params={"date": date},
+        f"data/persons/{person['id']}/time-spents/{date}",
         client=client,
     )
 
@@ -822,7 +825,7 @@ def disable_two_factor_authentication(
     """
     person = normalize_model_parameter(person)
     return raw.delete(
-        f"data/persons/{person['id']}/two-factor-authentication",
+        f"actions/persons/{person['id']}/disable-two-factor-authentication",
         client=client,
     )
 
@@ -840,4 +843,6 @@ def clear_person_avatar(
         Response: Request response object.
     """
     person = normalize_model_parameter(person)
-    return raw.delete(f"data/persons/{person['id']}/avatar", client=client)
+    return raw.delete(
+        f"actions/persons/{person['id']}/clear-avatar", client=client
+    )

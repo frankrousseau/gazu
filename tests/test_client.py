@@ -549,6 +549,19 @@ class BaseFuncTestCase(ClientTestCase):
             gazu.log_out()
             self.assertEqual(raw.default_client.tokens, {})
 
+    def test_init_log_in_surfaces_server_message(self):
+        with requests_mock.mock() as mock:
+            mock_route(
+                mock,
+                "POST",
+                "auth/login",
+                text={"message": "Wrong 2FA code"},
+                status_code=400,
+            )
+            with self.assertRaises(AuthFailedException) as context:
+                gazu.log_in("a@b.c", "pw")
+            self.assertIn("Wrong 2FA code", str(context.exception))
+
     def test_init_send_email_otp(self):
         with requests_mock.mock() as mock:
             mock_route(
@@ -614,3 +627,19 @@ class BaseFuncTestCase(ClientTestCase):
                 text="test",
             )
             self.assertEqual(raw.get_file_data_from_url("test_url"), b"test")
+
+    def test_download_raises_on_error_without_writing_file(self):
+        import os
+        import tempfile
+
+        target = os.path.join(tempfile.mkdtemp(), "out.bin")
+        with requests_mock.mock() as mock:
+            mock.get(
+                raw.get_full_url("movies/originals/preview-files/x.mp4"),
+                text=json.dumps({"error": "not found"}),
+                status_code=404,
+            )
+            with self.assertRaises(RouteNotFoundException):
+                raw.download("movies/originals/preview-files/x.mp4", target)
+            # The error body must not have been written to the target.
+            self.assertFalse(os.path.exists(target))

@@ -86,6 +86,7 @@ def log_in(
         AuthFailedException: when the credentials are rejected.
     """
     tokens = {}
+    login_error = None
     try:
         tokens = raw.post(
             "auth/login",
@@ -99,10 +100,14 @@ def log_in(
             },
             client=client,
         )
-    except (NotAuthenticatedException, ParameterException):
-        pass
+    except (NotAuthenticatedException, ParameterException) as exc:
+        # Keep the server's reason (wrong 2FA, locked account, ...) instead
+        # of raising a bare AuthFailedException.
+        login_error = exc
 
     if not tokens or tokens.get("login") is False:
+        if login_error is not None:
+            raise AuthFailedException(str(login_error))
         raise AuthFailedException
     else:
         raw.set_tokens(tokens, client=client)
@@ -123,7 +128,9 @@ def log_out(client=raw.default_client):
     tokens = {}
     try:
         raw.get("auth/logout", client=client)
-    except ParameterException:
+    except (ParameterException, NotAuthenticatedException):
+        # Clear the local tokens even if the server rejects the logout
+        # (e.g. the access token has already expired).
         pass
     raw.set_tokens(tokens, client=client)
     return tokens
@@ -195,15 +202,20 @@ def create_session(
         use_refresh_token=use_refresh_token,
         callback_not_authenticated=callback_not_authenticated,
     )
-    log_in(
-        email,
-        password,
-        totp=totp,
-        email_otp=email_otp,
-        fido_authentication_response=fido_authentication_response,
-        recovery_code=recovery_code,
-        client=client,
-    )
+    try:
+        log_in(
+            email,
+            password,
+            totp=totp,
+            email_otp=email_otp,
+            fido_authentication_response=fido_authentication_response,
+            recovery_code=recovery_code,
+            client=client,
+        )
+    except Exception:
+        # Don't leak the underlying requests session if login fails.
+        client.session.close()
+        raise
     return client
 
 

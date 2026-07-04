@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import string
 
 import requests
@@ -557,36 +558,11 @@ def get_task_type_by_short_name(
 
 
 @cache
-def get_task_by_path(
-    project: str | dict,
-    file_path: str,
-    entity_type: str = "shot",
-    client: KitsuClient = default,
-) -> dict:
-    """
-    Args:
-        project (str / dict): The project dict or the project ID.
-        file_path (str): The file path to find a related task.
-        entity_type (str): asset, shot or scene.
-
-    Returns:
-        dict: A task from given file path. This function requires context:
-        the project related to the given path and the related entity type.
-    """
-    project = normalize_model_parameter(project)
-    data = {
-        "file_path": file_path,
-        "project_id": project["id"],
-        "type": entity_type,
-    }
-    return raw.post("data/tasks/from-path/", data, client=client)
-
-
-@cache
-def get_default_task_status(client: KitsuClient = default) -> dict:
+def get_default_task_status(client: KitsuClient = default) -> dict | None:
     """
     Returns:
-        dict: The unique task status flagged with `is_default`.
+        dict: The unique task status flagged with `is_default`, or None if
+        none is flagged.
     """
     return raw.fetch_first(
         "task-status", params={"is_default": True}, client=client
@@ -826,42 +802,6 @@ def start_task(
     return add_comment(task, started_task_status, person=person, client=client)
 
 
-def task_to_review(
-    task: str | dict,
-    person: str | dict,
-    comment: str,
-    revision: int = 1,
-    change_status: bool = True,
-    client: KitsuClient = default,
-) -> dict:
-    """
-    Deprecated.
-    Mark given task as pending, waiting for approval. Author is given through
-    the person argument.
-
-    Args:
-        task (str / dict): The task dict or the task ID.
-        person (str / dict): The person dict or the person ID.
-        comment (str): Comment text
-        revision (int): Force revision of related preview file
-        change_status (bool): If set to false, the task status is not changed.
-
-    Returns:
-        dict: Modified task
-    """
-    task = normalize_model_parameter(task)
-    person = normalize_model_parameter(person)
-    path = f"actions/tasks/{task['id']}/to-review"
-    data = {
-        "person_id": person["id"],
-        "comment": comment,
-        "revision": revision,
-        "change_status": change_status,
-    }
-
-    return raw.put(path, data, client=client)
-
-
 @cache
 def get_time_spent(
     task: str | dict, date: str | None = None, client: KitsuClient = default
@@ -1001,7 +941,14 @@ def add_comment(
     else:
         attachments = list(attachments)
         attachment = attachments.pop()
+        # Multipart form parts are plain strings. Zou parses "for_client"
+        # with bool(str), so "False" would wrongly become True -- drop the
+        # field when False (the server defaults it to False). List fields
+        # must be JSON-encoded so Zou's json.loads() can decode them.
+        if not for_client:
+            del data["for_client"]
         data["checklist"] = json.dumps(checklist)
+        data["links"] = json.dumps(links)
         return raw.upload(
             f"actions/tasks/{task['id']}/comment",
             attachment,
@@ -1176,20 +1123,27 @@ def add_preview(
     Returns:
         dict: Created preview file model.
     """
-    if preview_file_url is not None:
-        preview_file_path = download_file(
-            preview_file_url,
+    if preview_file_path is None and preview_file_url is None:
+        raise ValueError(
+            "add_preview requires either preview_file_path or "
+            "preview_file_url."
         )
-
-    preview_file = create_preview(
-        task, comment, revision=revision, client=client
-    )
-    return upload_preview_file(
-        preview_file,
-        preview_file_path,
-        normalize_movie=normalize_movie,
-        client=client,
-    )
+    downloaded = None
+    if preview_file_url is not None:
+        preview_file_path = downloaded = download_file(preview_file_url)
+    try:
+        preview_file = create_preview(
+            task, comment, revision=revision, client=client
+        )
+        return upload_preview_file(
+            preview_file,
+            preview_file_path,
+            normalize_movie=normalize_movie,
+            client=client,
+        )
+    finally:
+        if downloaded is not None and os.path.exists(downloaded):
+            os.remove(downloaded)
 
 
 def add_extra_preview(
@@ -1220,20 +1174,27 @@ def add_extra_preview(
     Returns:
         dict: Created preview file model.
     """
-    if preview_file_url is not None:
-        preview_file_path = download_file(
-            preview_file_url,
+    if preview_file_path is None and preview_file_url is None:
+        raise ValueError(
+            "add_extra_preview requires either preview_file_path or "
+            "preview_file_url."
         )
-
-    new_preview_file = create_extra_preview(
-        task, comment, preview_file, client=client
-    )
-    return upload_preview_file(
-        new_preview_file,
-        preview_file_path,
-        normalize_movie=normalize_movie,
-        client=client,
-    )
+    downloaded = None
+    if preview_file_url is not None:
+        preview_file_path = downloaded = download_file(preview_file_url)
+    try:
+        new_preview_file = create_extra_preview(
+            task, comment, preview_file, client=client
+        )
+        return upload_preview_file(
+            new_preview_file,
+            preview_file_path,
+            normalize_movie=normalize_movie,
+            client=client,
+        )
+    finally:
+        if downloaded is not None and os.path.exists(downloaded):
+            os.remove(downloaded)
 
 
 def publish_preview(
@@ -1384,20 +1345,24 @@ def add_tasks_batch_comments(
     client: KitsuClient = default,
 ) -> list[dict]:
     """
-    Add comments to multiple tasks in a batch operation.
+    Add the same comment to several tasks in one request.
 
     Args:
         tasks (list): List of task dicts or IDs.
-        comments_data (dict): Comment data to apply to all tasks. Should contain
-            task_status_id, comment text, and optionally person_id, checklist,
-            attachments, etc.
+        comments_data (dict): Comment fields applied to every task. Should
+            contain at least ``text``, ``task_status_id`` and ``person_id``.
 
     Returns:
         list: List of created comments.
     """
-    task_ids = [normalize_model_parameter(task)["id"] for task in tasks]
-    data = {"task_ids": task_ids, **comments_data}
-    return raw.post("actions/tasks/batch-comment", data, client=client)
+    # Zou expects a "comments" array, each entry carrying its own task_id.
+    comments = [
+        {**comments_data, "task_id": normalize_model_parameter(task)["id"]}
+        for task in tasks
+    ]
+    return raw.post(
+        "actions/tasks/batch-comment", {"comments": comments}, client=client
+    )
 
 
 def set_main_preview(
@@ -1453,7 +1418,6 @@ def get_last_comment_for_task(
     return raw.fetch_first(f"tasks/{task['id']}/comments", client=client)
 
 
-@cache
 def assign_task(
     task: str | dict, person: str | dict, client: KitsuClient = default
 ) -> dict:
@@ -1490,6 +1454,9 @@ def clear_assignations(
     """
     if not isinstance(tasks, list):
         tasks = [tasks]
+    if not tasks:
+        # Nothing to clear: avoid a pointless 400 from the server.
+        return []
     data = {}
     for task in tasks:
         task = normalize_model_parameter(task)
@@ -1568,9 +1535,11 @@ def update_task(task: dict, client: KitsuClient = default) -> dict:
         dict: Updated task.
     """
     if "assignees" in task:
-        task["assignees"] = normalize_list_of_models_for_links(
-            task["assignees"]
-        )
+        # Copy before normalizing so the caller's dict is left untouched.
+        task = {
+            **task,
+            "assignees": normalize_list_of_models_for_links(task["assignees"]),
+        }
     return raw.put(f"data/tasks/{task['id']}", task, client=client)
 
 
@@ -1593,13 +1562,18 @@ def update_task_data(
     if data is None:
         data = {}
     task = normalize_model_parameter(task)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_task.clear_cache()
     current_task = get_task(task["id"], client=client)
 
     updated_task = {
         "id": current_task["id"],
         "data": {**(current_task["data"] or {}), **data},
     }
-    return update_task(updated_task, client=client)
+    result = update_task(updated_task, client=client)
+    get_task.clear_cache()
+    return result
 
 
 @cache
@@ -1617,6 +1591,7 @@ def get_task_url(task: dict, client: KitsuClient = default) -> str:
     return f"{host}/productions/{task['project_id']}/shots/tasks/{task['id']}/"
 
 
+@cache
 def all_tasks_for_project(
     project: str | dict,
     task_type: str | dict | None = None,
@@ -1666,7 +1641,7 @@ def all_open_tasks(client: KitsuClient = default) -> list[dict]:
     Returns:
         list: Open tasks.
     """
-    return raw.fetch_all("tasks/open", client=client)
+    return raw.fetch_all("tasks/open-tasks", client=client)
 
 
 @cache
@@ -1677,7 +1652,7 @@ def get_open_tasks_stats(client: KitsuClient = default) -> dict:
     Returns:
         dict: Open tasks statistics.
     """
-    return raw.get("data/tasks/open/stats", client=client)
+    return raw.get("data/tasks/open-tasks/stats", client=client)
 
 
 @cache
@@ -1698,23 +1673,6 @@ def all_previews_for_task(
 
 
 @cache
-def all_open_tasks_for_person(
-    person: str | dict, client: KitsuClient = default
-) -> list[dict]:
-    """
-    Get all open tasks for a person.
-
-    Args:
-        person (str / dict): The person dict or id.
-
-    Returns:
-        list: Open tasks for the person.
-    """
-    person = normalize_model_parameter(person)
-    return raw.fetch_all(f"persons/{person['id']}/tasks/open", client=client)
-
-
-@cache
 def all_tasks_for_person_and_type(
     person: str | dict, task_type: str | dict, client: KitsuClient = default
 ) -> list[dict]:
@@ -1731,7 +1689,7 @@ def all_tasks_for_person_and_type(
     person = normalize_model_parameter(person)
     task_type = normalize_model_parameter(task_type)
     return raw.fetch_all(
-        f"persons/{person['id']}/task-types/{task_type['id']}/tasks",
+        f"persons/{person['id']}/related-tasks/{task_type['id']}",
         client=client,
     )
 
@@ -1811,22 +1769,14 @@ def all_subscriptions_for_project(
 
 
 @cache
-def get_persons_tasks_dates(
-    project: str | dict, client: KitsuClient = default
-) -> dict:
+def get_persons_tasks_dates(client: KitsuClient = default) -> dict:
     """
-    Get tasks dates for persons in a project.
-
-    Args:
-        project (str / dict): The project dict or id.
+    Get, for each person, the first and last task start/due dates.
 
     Returns:
         dict: Tasks dates for persons.
     """
-    project = normalize_model_parameter(project)
-    return raw.get(
-        f"data/projects/{project['id']}/persons/tasks/dates", client=client
-    )
+    return raw.get("data/persons/task-dates", client=client)
 
 
 def remove_tasks_for_type(
@@ -1842,26 +1792,33 @@ def remove_tasks_for_type(
     project = normalize_model_parameter(project)
     task_type = normalize_model_parameter(task_type)
     return raw.delete(
-        f"data/projects/{project['id']}/task-types/{task_type['id']}/tasks",
+        f"actions/projects/{project['id']}"
+        f"/task-types/{task_type['id']}/delete-tasks",
         client=client,
     )
 
 
 def remove_tasks_batch(
-    tasks: list[str | dict], client: KitsuClient = default
+    project: str | dict,
+    tasks: list[str | dict],
+    client: KitsuClient = default,
 ) -> requests.Response:
     """
-    Delete multiple tasks in batch.
+    Delete multiple tasks of a project in batch.
 
     Args:
+        project (str / dict): The project the tasks belong to.
         tasks (list): List of task dicts or IDs to delete.
 
     Returns:
         Response: Request response object.
     """
+    project = normalize_model_parameter(project)
     task_ids = [normalize_model_parameter(task)["id"] for task in tasks]
     return raw.post(
-        "data/tasks/delete-batch", {"task_ids": task_ids}, client=client
+        f"actions/projects/{project['id']}/delete-tasks",
+        task_ids,
+        client=client,
     )
 
 
@@ -1881,8 +1838,8 @@ def assign_tasks_to_person(
     person = normalize_model_parameter(person)
     task_ids = [normalize_model_parameter(task)["id"] for task in tasks]
     return raw.put(
-        "data/tasks/assign",
-        {"person_id": person["id"], "task_ids": task_ids},
+        f"actions/persons/{person['id']}/assign",
+        {"task_ids": task_ids},
         client=client,
     )
 
@@ -1903,8 +1860,7 @@ def get_task_time_spent_for_date(
     """
     task = normalize_model_parameter(task)
     return raw.get(
-        f"data/tasks/{task['id']}/time-spent/for-date",
-        params={"date": date},
+        f"actions/tasks/{task['id']}/time-spents/{date}",
         client=client,
     )
 
@@ -1925,31 +1881,8 @@ def remove_time_spent(
     return raw.delete(f"data/time-spents/{time_spent['id']}", client=client)
 
 
-def add_preview_to_comment(
-    comment: str | dict,
-    preview_file: str | dict,
-    client: KitsuClient = default,
-) -> dict:
-    """
-    Add a preview to a comment.
-
-    Args:
-        comment (str / dict): The comment dict or id.
-        preview_file (str / dict): The preview file dict or id.
-
-    Returns:
-        dict: Updated comment.
-    """
-    comment = normalize_model_parameter(comment)
-    preview_file = normalize_model_parameter(preview_file)
-    return raw.post(
-        f"data/comments/{comment['id']}/preview-files",
-        {"preview_file_id": preview_file["id"]},
-        client=client,
-    )
-
-
 def remove_preview_from_comment(
+    task: str | dict,
     comment: str | dict,
     preview_file: str | dict,
     client: KitsuClient = default,
@@ -1958,13 +1891,16 @@ def remove_preview_from_comment(
     Remove a preview from a comment.
 
     Args:
+        task (str / dict): The task the comment belongs to.
         comment (str / dict): The comment dict or id.
         preview_file (str / dict): The preview file dict or id.
     """
+    task = normalize_model_parameter(task)
     comment = normalize_model_parameter(comment)
     preview_file = normalize_model_parameter(preview_file)
     return raw.delete(
-        f"data/comments/{comment['id']}/preview-files/{preview_file['id']}",
+        f"actions/tasks/{task['id']}/comments/{comment['id']}"
+        f"/preview-files/{preview_file['id']}",
         client=client,
     )
 
@@ -2026,6 +1962,7 @@ def acknowledge_comment(
 
 
 def reply_to_comment(
+    task: str | dict,
     comment: str | dict,
     text: str,
     person: str | dict | None = None,
@@ -2035,6 +1972,7 @@ def reply_to_comment(
     Reply to an existing comment.
 
     Args:
+        task (str / dict): The task the comment belongs to.
         comment (str / dict): The comment dict or id to reply to.
         text (str): The reply text.
         person (str / dict): The person dict or id making the reply.
@@ -2042,19 +1980,21 @@ def reply_to_comment(
     Returns:
         dict: Created reply comment.
     """
+    task = normalize_model_parameter(task)
     comment = normalize_model_parameter(comment)
     data = {"text": text}
     if person is not None:
         person = normalize_model_parameter(person)
         data["person_id"] = person["id"]
     return raw.post(
-        f"data/comments/{comment['id']}/replies",
+        f"data/tasks/{task['id']}/comments/{comment['id']}/reply",
         data,
         client=client,
     )
 
 
 def delete_comment_attachment(
+    task: str | dict,
     comment: str | dict,
     attachment_file: str | dict,
     client: KitsuClient = default,
@@ -2063,21 +2003,25 @@ def delete_comment_attachment(
     Delete an attachment from a comment.
 
     Args:
+        task (str / dict): The task the comment belongs to.
         comment (str / dict): The comment dict or id.
         attachment_file (str / dict): The attachment file dict or id.
 
     Returns:
         str: Request response object.
     """
+    task = normalize_model_parameter(task)
     comment = normalize_model_parameter(comment)
     attachment_file = normalize_model_parameter(attachment_file)
     return raw.delete(
-        f"data/comments/{comment['id']}/attachment-files/{attachment_file['id']}",
+        f"data/tasks/{task['id']}/comments/{comment['id']}"
+        f"/attachments/{attachment_file['id']}",
         client=client,
     )
 
 
 def delete_comment_reply(
+    task: str | dict,
     comment: str | dict,
     reply: str | dict,
     client: KitsuClient = default,
@@ -2086,16 +2030,19 @@ def delete_comment_reply(
     Delete a reply to a comment.
 
     Args:
+        task (str / dict): The task the comment belongs to.
         comment (str / dict): The comment dict or id.
         reply (str / dict): The reply comment dict or id.
 
     Returns:
         str: Request response object.
     """
+    task = normalize_model_parameter(task)
     comment = normalize_model_parameter(comment)
     reply = normalize_model_parameter(reply)
     return raw.delete(
-        f"data/comments/{comment['id']}/replies/{reply['id']}",
+        f"data/tasks/{task['id']}/comments/{comment['id']}"
+        f"/reply/{reply['id']}",
         client=client,
     )
 

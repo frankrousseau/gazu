@@ -323,23 +323,12 @@ class ProjectTestCase(unittest.TestCase):
             context = gazu.user.get_context()
             self.assertEqual(context["user"]["id"], fakeid("user-1"))
 
-    def test_all_project_assets(self):
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "GET",
-                f"data/user/projects/{fakeid('project-1')}/assets",
-                text=[{"id": fakeid("asset-1")}, {"id": fakeid("asset-2")}],
-            )
-            assets = gazu.user.all_project_assets(fakeid("project-1"))
-            self.assertEqual(len(assets), 2)
-
     def test_all_tasks_requiring_feedback(self):
         with requests_mock.mock() as mock:
             mock_route(
                 mock,
                 "GET",
-                "data/user/tasks-requiring-feedback",
+                "data/user/tasks-to-check",
                 text=[{"id": fakeid("task-1")}, {"id": fakeid("task-2")}],
             )
             tasks = gazu.user.all_tasks_requiring_feedback()
@@ -416,7 +405,7 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                "data/user/time-spents/by-date?date=2025-01-15",
+                "data/user/time-spents/2025-01-15",
                 text=[{"id": fakeid("ts-1")}, {"id": fakeid("ts-2")}],
             )
             time_spents = gazu.user.get_time_spents_by_date("2025-01-15")
@@ -427,10 +416,12 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/user/tasks/{fakeid('task-1')}/time-spent",
+                f"data/user/tasks/{fakeid('task-1')}/time-spents/2025-01-15",
                 text={"id": fakeid("ts-1"), "duration": 3600},
             )
-            time_spent = gazu.user.get_task_time_spent(fakeid("task-1"))
+            time_spent = gazu.user.get_task_time_spent(
+                fakeid("task-1"), "2025-01-15"
+            )
             self.assertEqual(time_spent["duration"], 3600)
 
     def test_get_day_off(self):
@@ -438,10 +429,10 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                "data/user/day-off",
+                "data/user/day-offs/2025-01-15",
                 text={"days": 5},
             )
-            day_off = gazu.user.get_day_off()
+            day_off = gazu.user.get_day_off("2025-01-15")
             self.assertEqual(day_off["days"], 5)
 
     def test_notifications(self):
@@ -478,7 +469,7 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                "data/user/notifications/read-all",
+                "actions/user/notifications/mark-all-as-read",
                 text={"status": "ok"},
             )
             result = gazu.user.mark_all_notifications_as_read()
@@ -490,7 +481,7 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/user/tasks/{fakeid('task-1')}/subscription",
+                f"data/user/tasks/{fakeid('task-1')}/subscribed",
                 text={"subscribed": True},
             )
             sub = gazu.user.check_task_subscription(fakeid("task-1"))
@@ -499,7 +490,7 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                f"data/user/tasks/{fakeid('task-1')}/subscribe",
+                f"actions/user/tasks/{fakeid('task-1')}/subscribe",
                 text={"subscribed": True},
             )
             result = gazu.user.subscribe_to_task(fakeid("task-1"))
@@ -508,7 +499,7 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/user/tasks/{fakeid('task-1')}/unsubscribe",
+                f"actions/user/tasks/{fakeid('task-1')}/unsubscribe",
                 status_code=204,
             )
             gazu.user.unsubscribe_from_task(fakeid("task-1"))
@@ -528,7 +519,7 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                f"data/user/chats/{fakeid('chat-1')}/join",
+                f"actions/user/chats/{fakeid('chat-1')}/join",
                 text={"id": fakeid("chat-1"), "joined": True},
             )
             chat = gazu.user.join_chat(fakeid("chat-1"))
@@ -537,7 +528,7 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/user/chats/{fakeid('chat-1')}/leave",
+                f"actions/user/chats/{fakeid('chat-1')}/join",
                 status_code=204,
             )
             gazu.user.leave_chat(fakeid("chat-1"))
@@ -547,7 +538,7 @@ class ProjectTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                "data/user/avatar",
+                "actions/user/clear-avatar",
                 status_code=204,
             )
             gazu.user.clear_avatar()

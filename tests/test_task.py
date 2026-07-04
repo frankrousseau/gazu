@@ -1,6 +1,7 @@
 import unittest
 import json
 import requests_mock
+import gazu.cache
 import gazu.client
 from gazu.exception import (
     TaskStatusNotFoundException,
@@ -190,27 +191,6 @@ class TaskTestCase(unittest.TestCase):
             task_type = gazu.task.get_task_type_by_short_name("FX")
             self.assertEqual(task_type["name"], "FX")
 
-    def test_get_task_by_path(self):
-        with requests_mock.mock() as mock:
-            file_path = "/simple/SE01/S01/animation/blocking"
-            mock.post(
-                gazu.client.get_full_url("data/tasks/from-path"),
-                text=json.dumps({"id": "task-id"}),
-            )
-            task = gazu.task.get_task_by_path(
-                {"id": "project-id"}, file_path, "shot"
-            )
-            body = mock.request_history[0].body
-            request_body_string = (
-                body.decode("utf-8") if isinstance(body, bytes) else body
-            )
-            request_body = json.loads(request_body_string)
-            self.assertEqual(request_body["project_id"], "project-id")
-            self.assertEqual(request_body["type"], "shot")
-            self.assertEqual(request_body["file_path"], file_path)
-            self.assertIsNotNone(task)
-            self.assertEqual(task["id"], "task-id")
-
     def test_get_task_status(self):
         with requests_mock.mock() as mock:
             path = "data/task-status/status-01"
@@ -261,23 +241,6 @@ class TaskTestCase(unittest.TestCase):
                 text=[{"id": fakeid("task-status-1")}],
             )
             self.assertEqual(gazu.task.start_task(fakeid("task-1")), result)
-
-    def test_to_review(self):
-        with requests_mock.mock() as mock:
-            mock.put(
-                gazu.client.get_full_url("actions/tasks/task-01/to-review"),
-                text=json.dumps(
-                    {"name": "Task 01", "task_status_id": "wfa-1"}
-                ),
-            )
-            test_task = gazu.task.task_to_review(
-                {"id": "task-01"}, {"id": "person-01"}, "my comment"
-            )
-            self.assertEqual(test_task["task_status_id"], "wfa-1")
-            test_task = gazu.task.task_to_review(
-                {"id": "task-01"}, {"id": "person-01"}, "my comment"
-            )
-            self.assertEqual(test_task["task_status_id"], "wfa-1")
 
     def test_get_time_spent(self):
         with requests_mock.mock() as mock:
@@ -469,6 +432,37 @@ class TaskTestCase(unittest.TestCase):
             )
             self.assertEqual(comment, result)
             self.assertEqual(mock.last_request.json()["for_client"], False)
+
+    def test_add_comment_with_attachment_omits_for_client_when_false(self):
+        # Multipart parts are strings; Zou parses for_client with bool(str),
+        # so "False" would wrongly become True. The field must be absent.
+        import os
+        import tempfile
+
+        fd, path = tempfile.mkstemp(suffix=".txt")
+        os.write(fd, b"attachment")
+        os.close(fd)
+        try:
+            with requests_mock.mock() as mock:
+                mock_route(
+                    mock,
+                    "POST",
+                    f"actions/tasks/{fakeid('task-1')}/comment",
+                    text={"id": "comment-1"},
+                )
+                gazu.task.add_comment(
+                    fakeid("task-1"),
+                    fakeid("task-status-01"),
+                    "wip note",
+                    attachments=[path],
+                    links=["https://ref.example.com"],
+                )
+                body = mock.last_request.text
+                self.assertNotIn('name="for_client"', body)
+                # links must be JSON-encoded, not sent as a bare URL string.
+                self.assertIn('["https://ref.example.com"]', body)
+        finally:
+            os.remove(path)
 
     def test_add_comment_for_client(self):
         with requests_mock.mock() as mock:
@@ -861,15 +855,17 @@ class TaskTestCase(unittest.TestCase):
             task = {
                 "id": fakeid("task-1"),
                 "name": "task-1",
-                "assignees": [fakeid("person-1")],
+                "assignees": [{"id": fakeid("person-1")}],
             }
             mock_route(
                 mock,
                 "PUT",
                 f"data/tasks/{fakeid('task-1')}",
-                text=task,
+                text={"id": fakeid("task-1")},
             )
-            self.assertEqual(gazu.task.update_task(task), task)
+            gazu.task.update_task(task)
+            # The caller's dict must not be normalized in place.
+            self.assertEqual(task["assignees"], [{"id": fakeid("person-1")}])
 
     def test_update_task_status(self):
         with requests_mock.mock() as mock:
@@ -900,6 +896,43 @@ class TaskTestCase(unittest.TestCase):
                 text=task_type,
             )
             self.assertEqual(gazu.task.update_task_type(task_type), task_type)
+
+    def test_update_task_data_invalidates_stale_cache(self):
+        # With caching on, update_task_data must merge onto the current server
+        # state, not a stale cached copy (which would revert concurrent edits).
+        gazu.cache.enable()
+        try:
+            with requests_mock.mock() as mock:
+                server = {"id": fakeid("task-1"), "data": {"existing": 1}}
+                mock.get(
+                    gazu.client.get_full_url(
+                        f"data/tasks/{fakeid('task-1')}/full"
+                    ),
+                    json=lambda request, context: dict(server),
+                )
+
+                def apply_put(request, context):
+                    server["data"] = request.json()["data"]
+                    return server
+
+                mock.put(
+                    gazu.client.get_full_url(f"data/tasks/{fakeid('task-1')}"),
+                    json=apply_put,
+                )
+                # Prime the cache with the initial state (same client kwarg
+                # update_task_data uses, so the keys match).
+                gazu.task.get_task(
+                    fakeid("task-1"), client=gazu.client.default_client
+                )
+                # Another writer adds a key server-side.
+                server["data"] = {"existing": 1, "added": 2}
+                gazu.task.update_task_data(fakeid("task-1"), {"new": 3})
+                self.assertEqual(
+                    server["data"], {"existing": 1, "added": 2, "new": 3}
+                )
+        finally:
+            gazu.cache.disable()
+            gazu.task.get_task.clear_cache()
 
     def test_update_task_data(self):
         with requests_mock.mock() as mock:
@@ -1093,6 +1126,24 @@ class TaskTestCase(unittest.TestCase):
                     {"id": fakeid("preview-1")},
                 )
 
+    def test_clear_assignations_empty_is_noop(self):
+        # An empty list must not hit the API (which would 400): the mock has
+        # no routes, so any request would raise NoMockAddress.
+        with requests_mock.mock():
+            self.assertEqual(gazu.task.clear_assignations([]), [])
+
+    def test_add_preview_requires_path_or_url(self):
+        # Without a path or URL, it must fail before creating a preview
+        # record server-side (otherwise an empty preview is orphaned).
+        with self.assertRaises(ValueError):
+            gazu.task.add_preview(fakeid("task-1"), fakeid("comment-1"))
+        with self.assertRaises(ValueError):
+            gazu.task.add_extra_preview(
+                fakeid("task-1"),
+                fakeid("comment-1"),
+                fakeid("preview-1"),
+            )
+
     def test_add_attachment_files_to_comment(self):
         with open("./tests/fixtures/v1.png", "rb") as test_file:
             with requests_mock.Mocker() as mock:
@@ -1159,7 +1210,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                "data/tasks/open",
+                "data/tasks/open-tasks",
                 text=[{"id": fakeid("task-1")}, {"id": fakeid("task-2")}],
             )
             tasks = gazu.task.all_open_tasks()
@@ -1170,7 +1221,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                "data/tasks/open/stats",
+                "data/tasks/open-tasks/stats",
                 text={"total": 10, "by_status": {}},
             )
             stats = gazu.task.get_open_tasks_stats()
@@ -1190,23 +1241,12 @@ class TaskTestCase(unittest.TestCase):
             previews = gazu.task.all_previews_for_task(fakeid("task-1"))
             self.assertEqual(len(previews), 2)
 
-    def test_all_open_tasks_for_person(self):
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "GET",
-                f"data/persons/{fakeid('person-1')}/tasks/open",
-                text=[{"id": fakeid("task-1")}],
-            )
-            tasks = gazu.task.all_open_tasks_for_person(fakeid("person-1"))
-            self.assertEqual(len(tasks), 1)
-
     def test_all_tasks_for_person_and_type(self):
         with requests_mock.mock() as mock:
             mock_route(
                 mock,
                 "GET",
-                f"data/persons/{fakeid('person-1')}/task-types/{fakeid('task-type-1')}/tasks",
+                f"data/persons/{fakeid('person-1')}/related-tasks/{fakeid('task-type-1')}",
                 text=[{"id": fakeid("task-1")}],
             )
             tasks = gazu.task.all_tasks_for_person_and_type(
@@ -1272,10 +1312,10 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/projects/{fakeid('project-1')}/persons/tasks/dates",
+                "data/persons/task-dates",
                 text={"person-1": ["2025-01-15"]},
             )
-            dates = gazu.task.get_persons_tasks_dates(fakeid("project-1"))
+            dates = gazu.task.get_persons_tasks_dates()
             self.assertIn("person-1", dates)
 
     def test_remove_tasks_for_type(self):
@@ -1283,7 +1323,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/projects/{fakeid('project-1')}/task-types/{fakeid('task-type-1')}/tasks",
+                f"actions/projects/{fakeid('project-1')}/task-types/{fakeid('task-type-1')}/delete-tasks",
                 status_code=204,
             )
             gazu.task.remove_tasks_for_type(
@@ -1295,11 +1335,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                "data/tasks/delete-batch",
+                f"actions/projects/{fakeid('project-1')}/delete-tasks",
                 text={"deleted": 2},
             )
             result = gazu.task.remove_tasks_batch(
-                [fakeid("task-1"), fakeid("task-2")]
+                fakeid("project-1"), [fakeid("task-1"), fakeid("task-2")]
             )
             self.assertEqual(result["deleted"], 2)
 
@@ -1308,7 +1348,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "PUT",
-                "data/tasks/assign",
+                f"actions/persons/{fakeid('person-1')}/assign",
                 text={"assigned": 2},
             )
             result = gazu.task.assign_tasks_to_person(
@@ -1321,7 +1361,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "GET",
-                f"data/tasks/{fakeid('task-1')}/time-spent/for-date?date=2025-01-15",
+                f"actions/tasks/{fakeid('task-1')}/time-spents/2025-01-15",
                 text={"duration": 3600},
             )
             time_spent = gazu.task.get_task_time_spent_for_date(
@@ -1339,32 +1379,16 @@ class TaskTestCase(unittest.TestCase):
             )
             gazu.task.remove_time_spent(fakeid("time-spent-1"))
 
-    def test_add_preview_to_comment(self):
-        with requests_mock.mock() as mock:
-            mock_route(
-                mock,
-                "POST",
-                f"data/comments/{fakeid('comment-1')}/preview-files",
-                text={
-                    "id": fakeid("comment-1"),
-                    "preview_files": [fakeid("preview-1")],
-                },
-            )
-            result = gazu.task.add_preview_to_comment(
-                fakeid("comment-1"), fakeid("preview-1")
-            )
-            self.assertEqual(result["id"], fakeid("comment-1"))
-
     def test_remove_preview_from_comment(self):
         with requests_mock.mock() as mock:
             mock_route(
                 mock,
                 "DELETE",
-                f"data/comments/{fakeid('comment-1')}/preview-files/{fakeid('preview-1')}",
+                f"actions/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/preview-files/{fakeid('preview-1')}",
                 status_code=204,
             )
             gazu.task.remove_preview_from_comment(
-                fakeid("comment-1"), fakeid("preview-1")
+                fakeid("task-1"), fakeid("comment-1"), fakeid("preview-1")
             )
 
     def test_create_shot_tasks(self):
@@ -1471,11 +1495,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                f"data/comments/{fakeid('comment-1')}/replies",
+                f"data/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/reply",
                 text={"id": fakeid("reply-1"), "text": "This is a reply"},
             )
             result = gazu.task.reply_to_comment(
-                fakeid("comment-1"), "This is a reply"
+                fakeid("task-1"), fakeid("comment-1"), "This is a reply"
             )
             self.assertEqual(result["id"], fakeid("reply-1"))
             self.assertEqual(result["text"], "This is a reply")
@@ -1485,7 +1509,7 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "POST",
-                f"data/comments/{fakeid('comment-1')}/replies",
+                f"data/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/reply",
                 text={
                     "id": fakeid("reply-1"),
                     "text": "This is a reply",
@@ -1493,6 +1517,7 @@ class TaskTestCase(unittest.TestCase):
                 },
             )
             result = gazu.task.reply_to_comment(
+                fakeid("task-1"),
                 fakeid("comment-1"),
                 "This is a reply",
                 person=fakeid("person-1"),
@@ -1505,11 +1530,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/comments/{fakeid('comment-1')}/attachment-files/{fakeid('attachment-1')}",
+                f"data/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/attachments/{fakeid('attachment-1')}",
                 status_code=204,
             )
             gazu.task.delete_comment_attachment(
-                fakeid("comment-1"), fakeid("attachment-1")
+                fakeid("task-1"), fakeid("comment-1"), fakeid("attachment-1")
             )
 
     def test_delete_comment_reply(self):
@@ -1517,11 +1542,11 @@ class TaskTestCase(unittest.TestCase):
             mock_route(
                 mock,
                 "DELETE",
-                f"data/comments/{fakeid('comment-1')}/replies/{fakeid('reply-1')}",
+                f"data/tasks/{fakeid('task-1')}/comments/{fakeid('comment-1')}/reply/{fakeid('reply-1')}",
                 status_code=204,
             )
             gazu.task.delete_comment_reply(
-                fakeid("comment-1"), fakeid("reply-1")
+                fakeid("task-1"), fakeid("comment-1"), fakeid("reply-1")
             )
 
     def test_create_multiple_comments(self):
@@ -1579,7 +1604,13 @@ class TaskTestCase(unittest.TestCase):
             tasks = [fakeid("task-1"), fakeid("task-2")]
             comments_data = {
                 "task_status_id": fakeid("status-1"),
-                "comment": "Batch comment",
+                "text": "Batch comment",
             }
             result = gazu.task.add_tasks_batch_comments(tasks, comments_data)
             self.assertEqual(len(result), 2)
+            sent = mock.last_request.json()["comments"]
+            self.assertEqual(
+                [c["task_id"] for c in sent],
+                [fakeid("task-1"), fakeid("task-2")],
+            )
+            self.assertEqual(sent[0]["text"], "Batch comment")

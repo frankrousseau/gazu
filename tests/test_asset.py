@@ -551,6 +551,8 @@ class CastingTestCase(unittest.TestCase):
                 "episode_id": fakeid("episode_1"),
             }
             self.assertEqual(gazu.asset.update_asset(asset), result)
+            # The caller's dict must not be mutated.
+            self.assertNotIn("source_id", asset)
 
     def test_update_asset_data(self):
         with requests_mock.mock() as mock:
@@ -588,7 +590,7 @@ class CastingTestCase(unittest.TestCase):
     def test_disable_asset_instance(self):
         with requests_mock.mock() as mock:
             mock.put(
-                f"{gazu.client.host}/asset-instances/{fakeid('asset-instance-1')}",
+                f"{gazu.client.host}/data/asset-instances/{fakeid('asset-instance-1')}",
                 text=json.dumps(
                     {"id": fakeid("asset-instance-1"), "active": False}
                 ),
@@ -601,7 +603,7 @@ class CastingTestCase(unittest.TestCase):
     def test_enable_asset_instance(self):
         with requests_mock.mock() as mock:
             mock.put(
-                f"{gazu.client.host}/asset-instances/{fakeid('asset-instance-1')}",
+                f"{gazu.client.host}/data/asset-instances/{fakeid('asset-instance-1')}",
                 text=json.dumps(
                     {"id": fakeid("asset-instance-1"), "active": True}
                 ),
@@ -632,7 +634,7 @@ class CastingTestCase(unittest.TestCase):
 
     def test_get_episode_from_asset(self):
         self.assertEqual(
-            gazu.asset.get_episode_from_asset(asset={"parent_id": None}), None
+            gazu.asset.get_episode_from_asset(asset={"source_id": None}), None
         )
         with requests_mock.mock() as mock:
             result = {"name": "Episode 01", "project_id": "project-01"}
@@ -644,7 +646,7 @@ class CastingTestCase(unittest.TestCase):
             )
             self.assertEqual(
                 gazu.asset.get_episode_from_asset(
-                    {"parent_id": fakeid("episode-1")}
+                    {"source_id": fakeid("episode-1")}
                 ),
                 result,
             )

@@ -66,15 +66,18 @@ class TestCase(unittest.TestCase):
                     headers={"Content-Type": "image/png"},
                 )
                 downloaded_file = helpers.download_file(get_full_url("test"))
-                self.assertEqual(
-                    os.path.join(tempfile.gettempdir(), "test.png"),
-                    downloaded_file,
-                )
+                # Name still derived from the URL, but stored in a private
+                # unpredictable directory, not the shared temp root.
+                self.assertEqual(os.path.basename(downloaded_file), "test.png")
+                parent = os.path.dirname(downloaded_file)
+                self.assertNotEqual(parent, tempfile.gettempdir())
+                self.assertTrue(os.path.basename(parent).startswith("gazu_"))
                 self.assertEqual(
                     os.path.getsize(downloaded_file),
                     os.path.getsize("./tests/fixtures/v1.png"),
                 )
                 os.remove(downloaded_file)
+                os.rmdir(parent)
         with open("./tests/fixtures/v1.png", "rb") as thumbnail_file:
             with requests_mock.mock() as mock:
                 mock_route(

@@ -41,10 +41,14 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.pytest_cache/
 nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+
+# Code-audit artifacts (generated, not part of the codebase)
+.audit/
 
 # Translations
 *.mo

@@ -28,7 +28,7 @@ def all_assets_for_open_projects(client: KitsuClient = default) -> list[dict]:
     """
     all_assets = []
     for project in gazu_project.all_open_projects(client=client):
-        all_assets.extend(all_assets_for_project(project, client))
+        all_assets.extend(all_assets_for_project(project, client=client))
     return sort_by_name(all_assets)
 
 
@@ -283,7 +283,8 @@ def update_asset(asset: dict, client: KitsuClient = default) -> dict:
         asset (dict): Asset to save.
     """
     if "episode_id" in asset:
-        asset["source_id"] = asset["episode_id"]
+        # Copy before rewriting the key so the caller's dict is left intact.
+        asset = {**asset, "source_id": asset["episode_id"]}
     return raw.put(f"data/entities/{asset['id']}", asset, client=client)
 
 
@@ -304,12 +305,17 @@ def update_asset_data(
     if data is None:
         data = {}
     asset = normalize_model_parameter(asset)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_asset.clear_cache()
     current_asset = get_asset(asset["id"], client=client)
     updated_asset = {
         "id": current_asset["id"],
         "data": {**(current_asset["data"] or {}), **data},
     }
-    return update_asset(updated_asset, client=client)
+    result = update_asset(updated_asset, client=client)
+    get_asset.clear_cache()
+    return result
 
 
 def remove_asset(
@@ -494,7 +500,7 @@ def enable_asset_instance(
     """
     asset_instance = normalize_model_parameter(asset_instance)
     data = {"active": True}
-    path = f"asset-instances/{asset_instance['id']}"
+    path = f"data/asset-instances/{asset_instance['id']}"
     return raw.put(path, data, client=client)
 
 
@@ -509,7 +515,7 @@ def disable_asset_instance(
     """
     asset_instance = normalize_model_parameter(asset_instance)
     data = {"active": False}
-    path = f"asset-instances/{asset_instance['id']}"
+    path = f"data/asset-instances/{asset_instance['id']}"
     return raw.put(path, data, client=client)
 
 
@@ -529,10 +535,9 @@ def all_scene_asset_instances_for_asset(
     return raw.fetch_all(path, client=client)
 
 
-@cache
 def all_asset_instances_for_shot(
     shot: str | dict, client: KitsuClient = default
-) -> list[str]:
+) -> list[dict]:
     """
     Args:
         shot (str / dict): The shot dict or the shot ID.
@@ -540,9 +545,9 @@ def all_asset_instances_for_shot(
     Returns:
         list: Asset instances existing for a given shot.
     """
-    shot = normalize_model_parameter(shot)
-    path = f"shots/{shot['id']}/asset-instances"
-    return raw.fetch_all(path, client=client)
+    # Single source of truth: shot.get_asset_instances_for_shot hits the same
+    # route and already caches; no @cache here to avoid a redundant layer.
+    return gazu_shot.get_asset_instances_for_shot(shot, client=client)
 
 
 @cache
@@ -683,10 +688,12 @@ def get_episode_from_asset(
         dict: Episode which is parent of given asset, or None if not part of
             an episode.
     """
-    if asset["parent_id"] is None:
+    # Assets link to their episode through source_id (serialized as
+    # episode_id in API listings); parent_id is the asset-hierarchy link.
+    episode_id = asset.get("source_id") or asset.get("episode_id")
+    if episode_id is None:
         return None
-    else:
-        return gazu_shot.get_episode(asset["parent_id"], client=client)
+    return gazu_shot.get_episode(episode_id, client=client)
 
 
 @cache

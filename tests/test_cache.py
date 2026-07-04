@@ -147,6 +147,20 @@ class CacheTestCase(unittest.TestCase):
         self.assertIn("arg1", key)
         self.assertIn('"a": 1', key)
 
+    def test_get_cache_key_isolates_clients_by_token(self):
+        client_a = gazu.client.create_client("http://host/api")
+        client_a.access_token = "token-a"
+        client_b = gazu.client.create_client("http://host/api")
+        client_b.access_token = "token-b"
+        key_a = gazu.cache.get_cache_key((), {"client": client_a})
+        key_b = gazu.cache.get_cache_key((), {"client": client_b})
+        # Same host, different credentials must not collide.
+        self.assertNotEqual(key_a, key_b)
+        # Same client is stable.
+        self.assertEqual(
+            key_a, gazu.cache.get_cache_key((), {"client": client_a})
+        )
+
     def test_remove_oldest_entry(self):
         import datetime
 

@@ -412,6 +412,27 @@ def get(
         return response.text
 
 
+_SENSITIVE_BODY_FIELDS = {
+    "password",
+    "token",
+    "access_token",
+    "refresh_token",
+    "secret",
+}
+
+
+def _log_request_body(data: Any) -> None:
+    """
+    Log a request body at debug level, unless it carries a secret field.
+    """
+    try:
+        has_secret = any(field in data for field in _SENSITIVE_BODY_FIELDS)
+    except TypeError:
+        has_secret = False
+    if not has_secret:
+        logger.debug("Body: %s", data)
+
+
 def post(path: str, data: Any, client: KitsuClient = default_client) -> Any:
     """
     Run a post request toward given path for configured host.
@@ -425,15 +446,7 @@ def post(path: str, data: Any, client: KitsuClient = default_client) -> Any:
         The request result.
     """
     logger.debug("POST %s", get_full_url(path, client))
-    sensitive_fields = {
-        "password",
-        "token",
-        "access_token",
-        "refresh_token",
-        "secret",
-    }
-    if not any(field in data for field in sensitive_fields):
-        logger.debug("Body: %s", data)
+    _log_request_body(data)
     for _ in range(MAX_AUTH_RETRIES):
         headers = make_auth_header(client=client)
         headers["Content-Type"] = "application/json"
@@ -468,7 +481,7 @@ def put(path: str, data: dict, client: KitsuClient = default_client) -> Any:
         The request result.
     """
     logger.debug("PUT %s", get_full_url(path, client))
-    logger.debug("Body: %s", data)
+    _log_request_body(data)
     for _ in range(MAX_AUTH_RETRIES):
         headers = make_auth_header(client=client)
         headers["Content-Type"] = "application/json"
@@ -988,11 +1001,22 @@ def download(
 
     """
     path = build_path_with_params(path, params)
-    with client.session.get(
-        get_full_url(path, client),
-        headers=make_auth_header(client=client),
-        stream=True,
-    ) as response:
+    url = get_full_url(path, client)
+    for _ in range(MAX_AUTH_RETRIES):
+        response = client.session.get(
+            url, headers=make_auth_header(client=client), stream=True
+        )
+        # Check the status *before* streaming to the file, so an error body
+        # (404/403/500 JSON) is never written into the target, and an expired
+        # token triggers a refresh + retry like the other verbs.
+        _, retry = check_status(response, path, client=client)
+        if not retry:
+            break
+        response.close()
+    else:
+        raise NotAuthenticatedException(path)
+
+    with response:
         if file_path is None:
             # No destination: materialize the body and return the response.
             response.content

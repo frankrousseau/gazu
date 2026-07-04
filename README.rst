@@ -40,6 +40,14 @@ needs to know where is located the API server and to log in:
     gazu.set_host("https://zou-server-url/api")
     gazu.log_in("user@yourdomain.com", "password")
 
+For scripts, DCC integrations and automation, prefer a **bot token** over
+user credentials:
+
+.. code:: python
+
+    gazu.set_host("https://zou-server-url/api")
+    gazu.set_token("your-bot-jwt-token")
+
 Let's finish with an example. Fetch all the open projects:
 
 ::

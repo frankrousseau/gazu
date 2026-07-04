@@ -225,11 +225,16 @@ def update_project_data(
     if data is None:
         data = {}
     project = normalize_model_parameter(project)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_project.clear_cache()
     project = get_project(project["id"], client=client)
     if "data" not in project or project["data"] is None:
         project["data"] = {}
     project["data"] = {**project["data"], **data}
-    return update_project(project, client=client)
+    result = update_project(project, client=client)
+    get_project.clear_cache()
+    return result
 
 
 def close_project(project: str | dict, client: KitsuClient = default) -> dict:
@@ -356,7 +361,8 @@ def add_metadata_descriptor(
     Args:
         project (dict / ID): The project dict or id.
         name (str): The name of the metadata descriptor
-        entity_type (str): asset, shot or scene.
+        entity_type (str): One of "Asset", "Shot", "Edit", "Episode",
+            "Sequence", "Project".
         data_type (str): The value type, defaults to "string".
         choices (list): A list of possible values, empty list for free values.
         for_client (bool) : Wheter it should be displayed in Kitsu or not.
@@ -782,16 +788,22 @@ def get_milestones(
 
 @cache
 def get_project_quotas(
-    project: str | dict, client: KitsuClient = default
+    project: str | dict,
+    task_type: str | dict,
+    client: KitsuClient = default,
 ) -> list[dict]:
     """
-    Get quotas for a project.
+    Get quotas for a project and a task type.
 
     Args:
         project (dict / ID): The project dict or id.
+        task_type (dict / ID): The task type quotas are computed for.
     """
     project = normalize_model_parameter(project)
-    return raw.fetch_all(f"projects/{project['id']}/quotas", client=client)
+    task_type = normalize_model_parameter(task_type)
+    return raw.fetch_all(
+        f"projects/{project['id']}/quotas/{task_type['id']}", client=client
+    )
 
 
 @cache
@@ -808,8 +820,7 @@ def get_project_person_quotas(
     project = normalize_model_parameter(project)
     person = normalize_model_parameter(person)
     return raw.fetch_all(
-        f"projects/{project['id']}/person-quotas",
-        params={"person_id": person["id"]},
+        f"projects/{project['id']}/quotas/persons/{person['id']}",
         client=client,
     )
 

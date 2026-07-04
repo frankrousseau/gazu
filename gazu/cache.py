@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import datetime
+import hashlib
 import json
 
 from functools import wraps
@@ -54,6 +55,16 @@ def remove_oldest_entry(memo: dict, maxsize: int) -> Any:
     return None
 
 
+def _client_cache_identity(client: Any) -> list:
+    """
+    Identify a client by host AND credentials, so two clients pointing at the
+    same host with different tokens never share cache entries.
+    """
+    token = getattr(client, "access_token", None)
+    token_hash = hashlib.sha256(token.encode()).hexdigest() if token else None
+    return [client.host, token_hash]
+
+
 def get_cache_key(args: Any, kwargs: Any) -> str:
     """
     Serialize arguments to get a cache key. It will be used to store function
@@ -64,7 +75,7 @@ def get_cache_key(args: Any, kwargs: Any) -> str:
     """
     kwargscopy = kwargs.copy()
     if "client" in kwargscopy:
-        kwargscopy["client"] = kwargscopy["client"].host
+        kwargscopy["client"] = _client_cache_identity(kwargscopy["client"])
     if not args and not kwargscopy:
         return ""
     if not kwargscopy:

@@ -264,57 +264,6 @@ def all_scenes_for_sequence(
 
 
 @cache
-def all_assets_for_project(
-    project: str | dict, client: KitsuClient = default
-) -> list[dict]:
-    """
-    Args:
-        project (str / dict): The project dict or the project ID.
-
-    Returns:
-        list: Assets for which user has tasks assigned for given project.
-    """
-    project = normalize_model_parameter(project)
-    path = f"user/projects/{project['id']}/assets"
-    assets = raw.fetch_all(path, client=client)
-    return sort_by_name(assets)
-
-
-@cache
-def all_scenes_for_project(
-    project: str | dict, client: KitsuClient = default
-) -> list[dict]:
-    """
-    Args:
-        project (str / dict): The project dict or the project ID.
-
-    Returns:
-        list: Scenes for which user has tasks assigned for given project.
-    """
-    project = normalize_model_parameter(project)
-    path = f"user/projects/{project['id']}/scenes"
-    scenes = raw.fetch_all(path, client=client)
-    return sort_by_name(scenes)
-
-
-@cache
-def all_sequences_for_episode(
-    episode: str | dict, client: KitsuClient = default
-) -> list[dict]:
-    """
-    Args:
-        episode (str / dict): The episode dict or the episode ID.
-
-    Returns:
-        list: Sequences for which user has tasks assigned for given episode.
-    """
-    episode = normalize_model_parameter(episode)
-    path = f"user/episodes/{episode['id']}/sequences"
-    sequences = raw.fetch_all(path, client=client)
-    return sort_by_name(sequences)
-
-
-@cache
 def all_tasks_to_do(client: KitsuClient = default) -> list[dict]:
     """
     Returns:
@@ -378,6 +327,7 @@ def is_authenticated(client: KitsuClient = default) -> bool:
         return False
 
 
+@cache
 def all_filters(client: KitsuClient = default) -> list[dict]:
     """
     Returns:
@@ -459,24 +409,6 @@ def get_context(client: KitsuClient = default) -> dict:
 
 
 @cache
-def all_project_assets(
-    project: str | dict, client: KitsuClient = default
-) -> list[dict]:
-    """
-    Get assets for which user has tasks assigned for given project.
-
-    Args:
-        project (str / dict): The project dict or id.
-
-    Returns:
-        list: Assets for the project.
-    """
-    project = normalize_model_parameter(project)
-    path = f"user/projects/{project['id']}/assets"
-    return raw.fetch_all(path, client=client)
-
-
-@cache
 def all_tasks_requiring_feedback(client: KitsuClient = default) -> list[dict]:
     """
     Get tasks requiring feedback from the current user.
@@ -484,7 +416,7 @@ def all_tasks_requiring_feedback(client: KitsuClient = default) -> list[dict]:
     Returns:
         list: Tasks requiring feedback.
     """
-    return raw.fetch_all("user/tasks-requiring-feedback", client=client)
+    return raw.fetch_all("user/tasks-to-check", client=client)
 
 
 @cache
@@ -598,38 +530,40 @@ def get_time_spents_by_date(date: str, client: KitsuClient = default) -> list:
     Returns:
         list: Time spents for the date.
     """
-    return raw.get(
-        "data/user/time-spents/by-date", params={"date": date}, client=client
-    )
+    return raw.get(f"data/user/time-spents/{date}", client=client)
 
 
 @cache
 def get_task_time_spent(
-    task: str | dict, client: KitsuClient = default
+    task: str | dict, date: str, client: KitsuClient = default
 ) -> dict:
     """
-    Get time spent for a specific task.
+    Get time spent by the current user on a task for a given date.
 
     Args:
         task (str / dict): The task dict or id.
+        date (str): Date in YYYY-MM-DD format.
 
     Returns:
-        dict: Time spent information for the task.
+        dict: Time spent information for the task on that date.
     """
     task = normalize_model_parameter(task)
-    path = f"data/user/tasks/{task['id']}/time-spent"
+    path = f"data/user/tasks/{task['id']}/time-spents/{date}"
     return raw.get(path, client=client)
 
 
 @cache
-def get_day_off(client: KitsuClient = default) -> dict:
+def get_day_off(date: str, client: KitsuClient = default) -> dict:
     """
-    Get day off information for current user.
+    Get day off information for the current user on a given date.
+
+    Args:
+        date (str): Date in YYYY-MM-DD format.
 
     Returns:
         dict: Day off information.
     """
-    return raw.get("data/user/day-off", client=client)
+    return raw.get(f"data/user/day-offs/{date}", client=client)
 
 
 @cache
@@ -695,7 +629,7 @@ def check_task_subscription(
         dict: Subscription status.
     """
     task = normalize_model_parameter(task)
-    path = f"data/user/tasks/{task['id']}/subscription"
+    path = f"data/user/tasks/{task['id']}/subscribed"
     return raw.get(path, client=client)
 
 
@@ -710,7 +644,7 @@ def subscribe_to_task(task: str | dict, client: KitsuClient = default) -> dict:
         dict: Subscription information.
     """
     task = normalize_model_parameter(task)
-    path = f"data/user/tasks/{task['id']}/subscribe"
+    path = f"actions/user/tasks/{task['id']}/subscribe"
     return raw.post(path, {}, client=client)
 
 
@@ -724,7 +658,7 @@ def unsubscribe_from_task(
         task (str / dict): The task dict or id.
     """
     task = normalize_model_parameter(task)
-    path = f"data/user/tasks/{task['id']}/unsubscribe"
+    path = f"actions/user/tasks/{task['id']}/unsubscribe"
     return raw.delete(path, client=client)
 
 
@@ -750,7 +684,7 @@ def join_chat(chat: str | dict, client: KitsuClient = default) -> dict:
         dict: Chat information.
     """
     chat = normalize_model_parameter(chat)
-    path = f"data/user/chats/{chat['id']}/join"
+    path = f"actions/user/chats/{chat['id']}/join"
     return raw.post(path, {}, client=client)
 
 
@@ -762,7 +696,8 @@ def leave_chat(chat: str | dict, client: KitsuClient = default) -> str:
         chat (str / dict): The chat dict or id.
     """
     chat = normalize_model_parameter(chat)
-    path = f"data/user/chats/{chat['id']}/leave"
+    # Leaving is a DELETE on the same join route.
+    path = f"actions/user/chats/{chat['id']}/join"
     return raw.delete(path, client=client)
 
 
@@ -770,7 +705,7 @@ def clear_avatar(client: KitsuClient = default) -> str:
     """
     Clear user avatar.
     """
-    return raw.delete("data/user/avatar", client=client)
+    return raw.delete("actions/user/clear-avatar", client=client)
 
 
 def mark_all_notifications_as_read(
@@ -782,4 +717,6 @@ def mark_all_notifications_as_read(
     Returns:
         dict: Response information.
     """
-    return raw.post("data/user/notifications/read-all", {}, client=client)
+    return raw.post(
+        "actions/user/notifications/mark-all-as-read", {}, client=client
+    )

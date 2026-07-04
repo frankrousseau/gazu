@@ -1,7 +1,7 @@
 # Gazu Specifications
 
 Gazu is a Python client for the Kitsu API, a collaboration platform for
-animation and VFX studios. It provides ~580 functions organized into
+animation and VFX studios. It provides ~650 functions organized into
 domain-specific modules covering the full production data lifecycle.
 
 ## Client system
@@ -36,25 +36,26 @@ with `AsyncKitsuClient` and async versions of all HTTP primitives.
 Each module in `gazu/` maps to a Kitsu entity type. Modules are flat — no
 classes, just functions that call `raw.get()`, `raw.post()`, etc.
 
-| Module        | Entity              | Functions |
-|---------------|---------------------|-----------|
-| `asset.py`    | Assets, asset types | 32        |
-| `shot.py`     | Episodes, sequences, shots | 37 |
-| `scene.py`    | Scenes              | 17        |
-| `edit.py`     | Edits               | 9         |
-| `concept.py`  | Concepts            | 8         |
-| `entity.py`   | Generic entities    | 11        |
-| `task.py`     | Tasks, comments, previews | 95  |
-| `files.py`    | Working/output/preview files | 72 |
-| `person.py`   | Persons, departments, orgs | 37 |
-| `project.py`  | Projects, statuses  | 47        |
-| `user.py`     | Current user scope  | 47        |
-| `casting.py`  | Asset-to-shot links | 15        |
-| `playlist.py` | Review playlists    | 22        |
-| `studio.py`   | Studios             | 5         |
-| `context.py`  | User/project context switch | 14 |
-| `sync.py`     | Instance-to-instance sync | 26 |
-| `search.py`   | Full-text search    | 1         |
+| Module                | Entity              | Functions |
+|-----------------------|---------------------|-----------|
+| `asset.py`            | Assets, asset types | 34        |
+| `shot.py`             | Episodes, sequences, shots | 40 |
+| `scene.py`            | Scenes              | 17        |
+| `edit.py`             | Edits               | 9         |
+| `concept.py`          | Concepts            | 8         |
+| `entity.py`           | Generic entities    | 11        |
+| `task.py`             | Tasks, comments, previews | 100 |
+| `files.py`            | Working/output/preview files | 76 |
+| `person.py`           | Persons, departments, orgs | 41 |
+| `project.py`          | Projects, statuses  | 48        |
+| `project_template.py` | Project templates   | 25        |
+| `user.py`             | Current user scope  | 50        |
+| `casting.py`          | Asset-to-shot links | 15        |
+| `playlist.py`         | Review playlists    | 25        |
+| `studio.py`           | Studios             | 5         |
+| `context.py`          | User/project context switch | 14 |
+| `sync.py`             | Instance-to-instance sync | 27 |
+| `search.py`           | Full-text search    | 1         |
 
 ## Naming conventions
 
@@ -80,7 +81,7 @@ the conversion.
 
 ## Caching
 
-`gazu/cache.py` provides a `@cache` decorator applied to ~215 read-only
+`gazu/cache.py` provides a `@cache` decorator applied to ~240 read-only
 functions. Each decorated function gets its own isolated dict store with
 LRU eviction (default 300 entries) and TTL (default 120 seconds).
 
@@ -109,17 +110,19 @@ All accept an optional `progress_callback(bytes_read, total)` parameter.
 
 ## Exceptions
 
-`gazu/exception.py` defines 15 exception classes mapped to HTTP status
-codes:
+`gazu/exception.py` defines 17 exception classes, all subclassing a common
+`GazuException` base, mapped to HTTP status codes:
 
 | Exception                      | HTTP status |
 |--------------------------------|-------------|
+| `GazuException`                | Base class  |
 | `ParameterException`           | 400         |
 | `NotAuthenticatedException`    | 401         |
 | `NotAllowedException`          | 403         |
 | `RouteNotFoundException`       | 404         |
 | `MethodNotAllowedException`    | 405         |
 | `TooBigFileException`          | 413         |
+| `ValidationException`          | 422         |
 | `ServerErrorException`         | 500         |
 | `AuthFailedException`          | Login failure |
 | `UploadFailedException`        | Upload error |
@@ -132,7 +135,7 @@ codes:
 
 ## Testing
 
-Tests live in `tests/` with one file per module (22 files total, 513
+Tests live in `tests/` with one file per module (24 files total, ~600
 tests). They use `requests_mock` to mock HTTP calls. Key utilities in
 `tests/utils.py`:
 

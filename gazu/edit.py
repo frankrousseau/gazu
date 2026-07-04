@@ -190,10 +190,15 @@ def update_edit_data(
     if data is None:
         data = {}
     edit = normalize_model_parameter(edit)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_edit.clear_cache()
     current_edit = get_edit(edit["id"], client=client)
     current_data = current_edit["data"] or {}
     updated_edit = {
         "id": current_edit["id"],
         "data": {**current_data, **data},
     }
-    return update_edit(updated_edit, client=client)
+    result = update_edit(updated_edit, client=client)
+    get_edit.clear_cache()
+    return result

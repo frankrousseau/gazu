@@ -323,55 +323,46 @@ def delete_playlist(
 
 
 @cache
-def get_entity_previews(
-    playlist: str | dict, client: KitsuClient = default
-) -> list[dict]:
-    """
-    Get entity previews for a playlist.
-
-    Args:
-        playlist (str / dict): The playlist dict or id.
-
-    Returns:
-        list: Entity previews for the playlist.
-    """
-    playlist = normalize_model_parameter(playlist)
-    return raw.fetch_all(
-        f"playlists/{playlist['id']}/entity-previews", client=client
-    )
-
-
-@cache
 def get_build_job(
-    build_job: str | dict, client: KitsuClient = default
+    playlist: str | dict,
+    build_job: str | dict,
+    client: KitsuClient = default,
 ) -> dict:
     """
     Get a build job.
 
     Args:
+        playlist (str / dict): The playlist the build job belongs to.
         build_job (str / dict): The build job dict or id.
 
     Returns:
         dict: Build job information.
     """
+    playlist = normalize_model_parameter(playlist)
     build_job = normalize_model_parameter(build_job)
-    return raw.fetch_one(
-        "playlists/build-jobs", build_job["id"], client=client
+    return raw.get(
+        f"data/playlists/{playlist['id']}/jobs/{build_job['id']}",
+        client=client,
     )
 
 
 def remove_build_job(
-    build_job: str | dict, client: KitsuClient = default
+    playlist: str | dict,
+    build_job: str | dict,
+    client: KitsuClient = default,
 ) -> str:
     """
     Delete a build job.
 
     Args:
+        playlist (str / dict): The playlist the build job belongs to.
         build_job (str / dict): The build job dict or id.
     """
+    playlist = normalize_model_parameter(playlist)
     build_job = normalize_model_parameter(build_job)
     return raw.delete(
-        f"data/playlists/build-jobs/{build_job['id']}", client=client
+        f"data/playlists/{playlist['id']}/jobs/{build_job['id']}",
+        client=client,
     )
 
 
@@ -405,9 +396,7 @@ def build_playlist_movie(
         dict: Build job information.
     """
     playlist = normalize_model_parameter(playlist)
-    return raw.post(
-        f"data/playlists/{playlist['id']}/build-movie", {}, client=client
-    )
+    return raw.get(f"data/playlists/{playlist['id']}/build/mp4", client=client)
 
 
 def download_playlist_build(
@@ -430,7 +419,7 @@ def download_playlist_build(
     """
     playlist = normalize_model_parameter(playlist)
     build_job = normalize_model_parameter(build_job)
-    path = f"data/playlists/{playlist['id']}/build-jobs/{build_job['id']}/download"
+    path = f"data/playlists/{playlist['id']}/jobs/{build_job['id']}/build/mp4"
     return raw.download(
         path, file_path, client=client, progress_callback=progress_callback
     )
