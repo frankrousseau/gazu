@@ -1592,6 +1592,7 @@ def get_task_url(task: dict, client: KitsuClient = default) -> str:
     return f"{host}/productions/{task['project_id']}/shots/tasks/{task['id']}/"
 
 
+@cache
 def all_tasks_for_project(
     project: str | dict,
     task_type: str | dict | None = None,

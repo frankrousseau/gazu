@@ -327,6 +327,7 @@ def is_authenticated(client: KitsuClient = default) -> bool:
         return False
 
 
+@cache
 def all_filters(client: KitsuClient = default) -> list[dict]:
     """
     Returns:
