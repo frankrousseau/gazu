@@ -535,10 +535,9 @@ def all_scene_asset_instances_for_asset(
     return raw.fetch_all(path, client=client)
 
 
-@cache
 def all_asset_instances_for_shot(
     shot: str | dict, client: KitsuClient = default
-) -> list[str]:
+) -> list[dict]:
     """
     Args:
         shot (str / dict): The shot dict or the shot ID.
@@ -546,9 +545,9 @@ def all_asset_instances_for_shot(
     Returns:
         list: Asset instances existing for a given shot.
     """
-    shot = normalize_model_parameter(shot)
-    path = f"shots/{shot['id']}/asset-instances"
-    return raw.fetch_all(path, client=client)
+    # Single source of truth: shot.get_asset_instances_for_shot hits the same
+    # route and already caches; no @cache here to avoid a redundant layer.
+    return gazu_shot.get_asset_instances_for_shot(shot, client=client)
 
 
 @cache
