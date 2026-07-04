@@ -46,7 +46,7 @@ class EventsNamespace(socketio.ClientNamespace):
 
 def init(
     client: KitsuClient = default_client,
-    ssl_verify: bool = True,
+    ssl_verify: bool | None = None,
     reconnection: bool = True,
     logger: bool = False,
     **kwargs: Any,
@@ -57,6 +57,9 @@ def init(
     Returns:
         Event client that will be able to set listeners.
     """
+    if ssl_verify is None:
+        # Inherit the client's TLS setting instead of always verifying.
+        ssl_verify = getattr(client.session, "verify", True)
     params = {
         "ssl_verify": ssl_verify,
         "reconnection": reconnection,
@@ -66,9 +69,28 @@ def init(
     event_client = socketio.Client(**params)
     event_client.on("connect_error", connect_error)
     event_client.register_namespace(EventsNamespace("/events"))
-    event_client.connect(
-        get_event_host(client), make_auth_header(client=client)
-    )
+
+    first_connect = {"done": False}
+
+    def auth_headers() -> dict:
+        # socketio invokes this on every (re)connection attempt. Refresh the
+        # access token on reconnects so a long-lived listener does not retry
+        # with an expired one (the first connect uses the current token).
+        if (
+            first_connect["done"]
+            and client.refresh_token
+            and client.use_refresh_token
+        ):
+            try:
+                client.refresh_access_token()
+            except Exception as exc:
+                logging.getLogger("gazu.events").debug(
+                    "token refresh before reconnect failed: %s", exc
+                )
+        first_connect["done"] = True
+        return make_auth_header(client=client)
+
+    event_client.connect(get_event_host(client), auth_headers)
     return event_client
 
 
