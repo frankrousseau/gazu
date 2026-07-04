@@ -323,7 +323,6 @@ def delete_playlist(
 
 
 @cache
-@cache
 def get_build_job(
     playlist: str | dict,
     build_job: str | dict,

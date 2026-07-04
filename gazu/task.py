@@ -558,7 +558,6 @@ def get_task_type_by_short_name(
 
 
 @cache
-@cache
 def get_default_task_status(client: KitsuClient = default) -> dict | None:
     """
     Returns:

@@ -409,7 +409,6 @@ def get_context(client: KitsuClient = default) -> dict:
 
 
 @cache
-@cache
 def all_tasks_requiring_feedback(client: KitsuClient = default) -> list[dict]:
     """
     Get tasks requiring feedback from the current user.
