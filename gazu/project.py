@@ -225,13 +225,16 @@ def update_project_data(
     if data is None:
         data = {}
     project = normalize_model_parameter(project)
-    # Read the base uncached to avoid reverting metadata written since a
-    # cached get_project was stored.
-    project = raw.fetch_one("projects", project["id"], client=client)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_project.clear_cache()
+    project = get_project(project["id"], client=client)
     if "data" not in project or project["data"] is None:
         project["data"] = {}
     project["data"] = {**project["data"], **data}
-    return update_project(project, client=client)
+    result = update_project(project, client=client)
+    get_project.clear_cache()
+    return result
 
 
 def close_project(project: str | dict, client: KitsuClient = default) -> dict:

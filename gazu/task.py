@@ -1595,15 +1595,18 @@ def update_task_data(
     if data is None:
         data = {}
     task = normalize_model_parameter(task)
-    # Read the base uncached: a cached get_task could be stale and silently
-    # revert metadata written since it was cached.
-    current_task = raw.get(f"data/tasks/{task['id']}/full", client=client)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_task.clear_cache()
+    current_task = get_task(task["id"], client=client)
 
     updated_task = {
         "id": current_task["id"],
         "data": {**(current_task["data"] or {}), **data},
     }
-    return update_task(updated_task, client=client)
+    result = update_task(updated_task, client=client)
+    get_task.clear_cache()
+    return result
 
 
 @cache

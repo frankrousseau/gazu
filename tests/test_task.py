@@ -1,6 +1,7 @@
 import unittest
 import json
 import requests_mock
+import gazu.cache
 import gazu.client
 from gazu.exception import (
     TaskStatusNotFoundException,
@@ -912,6 +913,43 @@ class TaskTestCase(unittest.TestCase):
                 text=task_type,
             )
             self.assertEqual(gazu.task.update_task_type(task_type), task_type)
+
+    def test_update_task_data_invalidates_stale_cache(self):
+        # With caching on, update_task_data must merge onto the current server
+        # state, not a stale cached copy (which would revert concurrent edits).
+        gazu.cache.enable()
+        try:
+            with requests_mock.mock() as mock:
+                server = {"id": fakeid("task-1"), "data": {"existing": 1}}
+                mock.get(
+                    gazu.client.get_full_url(
+                        f"data/tasks/{fakeid('task-1')}/full"
+                    ),
+                    json=lambda request, context: dict(server),
+                )
+
+                def apply_put(request, context):
+                    server["data"] = request.json()["data"]
+                    return server
+
+                mock.put(
+                    gazu.client.get_full_url(f"data/tasks/{fakeid('task-1')}"),
+                    json=apply_put,
+                )
+                # Prime the cache with the initial state (same client kwarg
+                # update_task_data uses, so the keys match).
+                gazu.task.get_task(
+                    fakeid("task-1"), client=gazu.client.default_client
+                )
+                # Another writer adds a key server-side.
+                server["data"] = {"existing": 1, "added": 2}
+                gazu.task.update_task_data(fakeid("task-1"), {"new": 3})
+                self.assertEqual(
+                    server["data"], {"existing": 1, "added": 2, "new": 3}
+                )
+        finally:
+            gazu.cache.disable()
+            gazu.task.get_task.clear_cache()
 
     def test_update_task_data(self):
         with requests_mock.mock() as mock:

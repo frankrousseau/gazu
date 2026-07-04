@@ -305,14 +305,17 @@ def update_asset_data(
     if data is None:
         data = {}
     asset = normalize_model_parameter(asset)
-    # Read the base uncached to avoid reverting metadata written since a
-    # cached get_asset was stored.
-    current_asset = raw.fetch_one("assets", asset["id"], client=client)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_asset.clear_cache()
+    current_asset = get_asset(asset["id"], client=client)
     updated_asset = {
         "id": current_asset["id"],
         "data": {**(current_asset["data"] or {}), **data},
     }
-    return update_asset(updated_asset, client=client)
+    result = update_asset(updated_asset, client=client)
+    get_asset.clear_cache()
+    return result
 
 
 def remove_asset(

@@ -510,15 +510,18 @@ def update_shot_data(
     if data is None:
         data = {}
     shot = normalize_model_parameter(shot)
-    # Read the base uncached to avoid reverting metadata written since a
-    # cached get_shot was stored.
-    current_shot = raw.fetch_one("shots", shot["id"], client=client)
+    # Invalidate the cache so the base read (and later reads) reflect the
+    # server state; merging onto a stale cached copy reverts concurrent edits.
+    get_shot.clear_cache()
+    current_shot = get_shot(shot["id"], client=client)
     current_data = current_shot["data"] or {}
     updated_shot = {
         "id": current_shot["id"],
         "data": {**current_data, **data},
     }
-    return update_shot(updated_shot, client=client)
+    result = update_shot(updated_shot, client=client)
+    get_shot.clear_cache()
+    return result
 
 
 def update_sequence_data(
