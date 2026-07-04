@@ -1604,7 +1604,13 @@ class TaskTestCase(unittest.TestCase):
             tasks = [fakeid("task-1"), fakeid("task-2")]
             comments_data = {
                 "task_status_id": fakeid("status-1"),
-                "comment": "Batch comment",
+                "text": "Batch comment",
             }
             result = gazu.task.add_tasks_batch_comments(tasks, comments_data)
             self.assertEqual(len(result), 2)
+            sent = mock.last_request.json()["comments"]
+            self.assertEqual(
+                [c["task_id"] for c in sent],
+                [fakeid("task-1"), fakeid("task-2")],
+            )
+            self.assertEqual(sent[0]["text"], "Batch comment")

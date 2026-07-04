@@ -1346,20 +1346,24 @@ def add_tasks_batch_comments(
     client: KitsuClient = default,
 ) -> list[dict]:
     """
-    Add comments to multiple tasks in a batch operation.
+    Add the same comment to several tasks in one request.
 
     Args:
         tasks (list): List of task dicts or IDs.
-        comments_data (dict): Comment data to apply to all tasks. Should contain
-            task_status_id, comment text, and optionally person_id, checklist,
-            attachments, etc.
+        comments_data (dict): Comment fields applied to every task. Should
+            contain at least ``text``, ``task_status_id`` and ``person_id``.
 
     Returns:
         list: List of created comments.
     """
-    task_ids = [normalize_model_parameter(task)["id"] for task in tasks]
-    data = {"task_ids": task_ids, **comments_data}
-    return raw.post("actions/tasks/batch-comment", data, client=client)
+    # Zou expects a "comments" array, each entry carrying its own task_id.
+    comments = [
+        {**comments_data, "task_id": normalize_model_parameter(task)["id"]}
+        for task in tasks
+    ]
+    return raw.post(
+        "actions/tasks/batch-comment", {"comments": comments}, client=client
+    )
 
 
 def set_main_preview(
