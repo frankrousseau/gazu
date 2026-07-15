@@ -195,6 +195,26 @@ class BaseFuncTestCase(ClientTestCase):
                 raw.fetch_all("persons"), [{"first_name": "John"}]
             )
 
+    def test_fetch_all_with_fields(self):
+        with requests_mock.mock() as mock:
+            mock_route(
+                mock,
+                "GET",
+                "data/persons",
+                text=[{"first_name": "John"}],
+            )
+            self.assertEqual(
+                raw.fetch_all("persons", fields=["first_name", "last_name"]),
+                [{"first_name": "John"}],
+            )
+            self.assertEqual(
+                mock.last_request.qs, {"fields": ["first_name,last_name"]}
+            )
+            raw.fetch_all("persons", fields="first_name,last_name")
+            self.assertEqual(
+                mock.last_request.qs, {"fields": ["first_name,last_name"]}
+            )
+
     def test_fetch_first(self):
         with requests_mock.mock() as mock:
             mock_route(

@@ -721,6 +721,7 @@ def fetch_all(
     client: KitsuClient = default_client,
     paginated: bool = False,
     limit: int | None = None,
+    fields: list[str] | str | None = None,
 ) -> list[dict]:
     """
     Args:
@@ -729,11 +730,20 @@ def fetch_all(
         client (KitsuClient): The client to use for the request.
         paginated (bool): Will query entries page by page.
         limit (int): Limit the number of entries per page.
+        fields (list / str): Names of the attributes to return for each
+            entry (id and type are always included). Only honored by the
+            generic model list routes; older Kitsu API versions ignore it.
 
     Returns:
         list: All entries stored in database for a given model. You can add a
         filter to the model name like this: "tasks?project_id=project-id"
     """
+    if fields is not None:
+        if not params:
+            params = {}
+        if not isinstance(fields, str):
+            fields = ",".join(fields)
+        params["fields"] = fields
 
     if paginated:
         if not params:
