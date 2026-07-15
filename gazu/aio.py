@@ -330,7 +330,15 @@ async def fetch_all(
     client: AsyncKitsuClient = None,
     paginated: bool = False,
     limit: int | None = None,
+    fields: list[str] | str | None = None,
 ) -> list[dict]:
+    if fields is not None:
+        if not params:
+            params = {}
+        if not isinstance(fields, str):
+            fields = ",".join(fields)
+        params["fields"] = fields
+
     if paginated:
         if not params:
             params = {}
