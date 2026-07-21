@@ -353,6 +353,7 @@ def add_metadata_descriptor(
     choices: list[str] | None = None,
     for_client: bool = False,
     departments: list[str | dict] | None = None,
+    task_type_id: str | dict | None = None,
     client: KitsuClient = default,
 ) -> dict:
     """
@@ -362,11 +363,13 @@ def add_metadata_descriptor(
         project (dict / ID): The project dict or id.
         name (str): The name of the metadata descriptor
         entity_type (str): One of "Asset", "Shot", "Edit", "Episode",
-            "Sequence", "Project".
+            "Sequence", "Project", "Task".
         data_type (str): The value type, defaults to "string".
         choices (list): A list of possible values, empty list for free values.
         for_client (bool) : Wheter it should be displayed in Kitsu or not.
         departments (list): A list of departments dict or id.
+        task_type_id (dict / ID): The task type the descriptor is scoped to.
+            Required when entity_type is "Task", forbidden otherwise.
 
     Returns:
         dict: Created metadata descriptor.
@@ -384,6 +387,8 @@ def add_metadata_descriptor(
         "entity_type": entity_type,
         "departments": normalize_list_of_models_for_links(departments),
     }
+    if task_type_id is not None:
+        data["task_type_id"] = normalize_model_parameter(task_type_id)["id"]
     return raw.post(
         f"data/projects/{project['id']}/metadata-descriptors",
         data,
