@@ -93,6 +93,14 @@ def test_example(self, mock):
     self.assertEqual(len(result), 1)
 ```
 
+### Route contract gate
+
+`tests/test_zou_routes.py` (with `tests/zou_route_gate.py`) fails any mocked request whose path+method does not exist in Zou's route snapshot. A mocked test passing is not proof the route is real — the gate is. When it rejects a path, verify against the zou blueprints (`../zou/zou/app/blueprints/*/__init__.py`) and fix the wrapper, not the gate.
+
+### Entity routes, not noun routes, for writes
+
+In Zou, several entity-noun sub-routes (`data/asset-types/{id}`, `data/assets/{id}/tasks`, …) are GET-only. Write wrappers for entities (asset/shot/sequence/episode/edit/concept) go through the generic routes: `PUT data/entities/{id}` for updates, `POST data/entities/{id}/tasks` for task creation, `data/entity-types/` for type CRUD. Follow the existing `update_asset`-style wrappers when adding new write operations.
+
 ## Code Style
 
 - Follow PEP 8, enforced by Black with line-length 79
@@ -100,16 +108,14 @@ def test_example(self, mock):
 
 ## PR Description Format
 
-PRs should use the following structure:
+PRs use the bold two-paragraph structure (harmonized across cgwire repos 2026-07 — do not use `## Problems` / `## Solutions` headers):
 
-```
-## Problems
-
+```markdown
+**Problem**
 - bullet point describing each problem addressed by the PR
 
-## Solutions
-
+**Solution**
 - bullet point describing each fix or change applied
 ```
 
-Keep bullet points concise. The Problems section lists what was wrong, the Solutions section lists what was done to fix it. One bullet per distinct issue/fix.
+Keep bullet points concise: the Problem section lists what was wrong, the Solution section what was done to fix it. One bullet per distinct issue/fix. No `🤖 Generated with` footer.
