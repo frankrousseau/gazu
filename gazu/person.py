@@ -162,17 +162,19 @@ def get_person_by_desktop_login(
 
 @cache
 def get_person_by_email(
-    email: str, client: KitsuClient = default
+    email: str, is_bot: bool = False, client: KitsuClient = default
 ) -> dict | None:
     """
     Args:
         email (str): User's email.
+        is_bot (bool): Whether to look up a bot account instead of a
+            regular person.
 
     Returns:
         dict:  Person corresponding to given email.
     """
     return raw.fetch_first(
-        "persons", {"email": email, "is_bot": False}, client=client
+        "persons", {"email": email, "is_bot": is_bot}, client=client
     )
 
 
