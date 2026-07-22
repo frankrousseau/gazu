@@ -164,6 +164,27 @@ class PersonTestCase(unittest.TestCase):
             person = gazu.person.get_person_by_email("john@gmail.com")
             self.assertEqual(person["id"], "person-01")
 
+    def test_get_person_by_email_is_bot(self):
+        with requests_mock.mock() as mock:
+            mock.get(
+                gazu.client.get_full_url(
+                    "data/persons?email=bot@gmail.com&is_bot=True"
+                ),
+                text=json.dumps(
+                    [
+                        {
+                            "first_name": "Bot",
+                            "last_name": "",
+                            "id": "person-02",
+                        }
+                    ]
+                ),
+            )
+            person = gazu.person.get_person_by_email(
+                "bot@gmail.com", is_bot=True
+            )
+            self.assertEqual(person["id"], "person-02")
+
     def test_new_person(self):
         with requests_mock.mock() as mock:
             result = {
